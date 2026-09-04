@@ -125,6 +125,18 @@
   .dec:last-child{border-bottom:none}
   .dec .t{color:var(--faint);flex:none}
   .dec.take{color:var(--txt)} .dec.skip{color:var(--faint)}
+  .mcap-ctrl{
+    display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;
+    padding:10px 13px;border-bottom:1px solid var(--line);background:var(--panel2);
+  }
+  .mcap-ctrl .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .mcap-ctrl b{font-variant-numeric:tabular-nums;color:var(--acc)}
+  .mcap-ctrl label{display:contents}
+  .mcap-ctrl span.lab{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+  .mcap-ctrl input[type=range]{
+    width:100%;accent-color:var(--acc);height:18px;cursor:pointer;
+  }
+  .mcap-ctrl .span{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px}
   @media (max-width:760px){ .split{grid-template-columns:1fr} .split > div + div{border-left:none;border-top:1px solid var(--line)} }
   .new{animation:flash 1.6s ease-out}
   @keyframes flash{from{background:rgba(61,220,151,.16)}to{background:transparent}}
@@ -167,6 +179,18 @@
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
       <span class="hint">fire on pending whale swap · 5% off fill · bank 18–32%</span></h2>
+    <div class="mcap-ctrl" id="mcap-ctrl">
+      <div class="span">
+        <span class="k">mcap band</span>
+        <b id="mcap-readout">$1M – $80M</b>
+      </div>
+      <span class="lab">min</span>
+      <label><input type="range" id="mcap-min" min="0" max="17" step="1" value="3"></label>
+      <span class="lab" id="mcap-min-v">$1M</span>
+      <span class="lab">max</span>
+      <label><input type="range" id="mcap-max" min="0" max="17" step="1" value="14"></label>
+      <span class="lab" id="mcap-max-v">$80M</span>
+    </div>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -264,6 +288,41 @@
   let selected = null;
   let lastSnap = null;
   let onSelect = () => {};
+  let setMcapBand = (_lo, _hi) => {};
+  const MCAP_STOPS = [1e5,2.5e5,5e5,1e6,2e6,3e6,5e6,8e6,1e7,1.5e7,2e7,3e7,4e7,6e7,8e7,1e8,1.5e8,2.5e8];
+  const fmtMcap = (n) => n >= 1e6
+    ? '$' + (Number.isInteger(n/1e6) ? (n/1e6) : (n/1e6).toFixed(1)) + 'M'
+    : '$' + Math.round(n/1e3) + 'k';
+  const nearestStop = (n) => MCAP_STOPS.reduce((b, s) => Math.abs(s-n) < Math.abs(b-n) ? s : b, MCAP_STOPS[0]);
+  const stopIdx = (n) => {
+    const v = nearestStop(n);
+    const i = MCAP_STOPS.indexOf(v);
+    return i < 0 ? 3 : i;
+  };
+  let mcapArmed = false;
+  const syncMcapUi = (minUsd, maxUsd) => {
+    const lo = nearestStop(minUsd), hi = nearestStop(maxUsd);
+    $('mcap-min').value = String(stopIdx(lo));
+    $('mcap-max').value = String(stopIdx(hi));
+    $('mcap-min-v').textContent = fmtMcap(lo);
+    $('mcap-max-v').textContent = fmtMcap(hi);
+    $('mcap-readout').textContent = fmtMcap(lo) + ' – ' + fmtMcap(hi);
+  };
+  const onMcapSlide = () => {
+    let i = Number($('mcap-min').value);
+    let j = Number($('mcap-max').value);
+    if (i > j) { const t = i; i = j; j = t; }
+    if (i === j) { if (j < MCAP_STOPS.length - 1) j++; else i--; }
+    const lo = MCAP_STOPS[i], hi = MCAP_STOPS[j];
+    $('mcap-min').value = String(i);
+    $('mcap-max').value = String(j);
+    $('mcap-min-v').textContent = fmtMcap(lo);
+    $('mcap-max-v').textContent = fmtMcap(hi);
+    $('mcap-readout').textContent = fmtMcap(lo) + ' – ' + fmtMcap(hi);
+    setMcapBand(lo, hi);
+  };
+  $('mcap-min').addEventListener('input', onMcapSlide);
+  $('mcap-max').addEventListener('input', onMcapSlide);
   document.addEventListener('click', (e) => {
     const loadBtn = e.target.closest('[data-load-wallet]');
     if (loadBtn) {
@@ -352,6 +411,10 @@
 
   function paint(s) {
     lastSnap = s;
+    if (s.mcapBand) {
+      if (!mcapArmed) { syncMcapUi(s.mcapBand.minUsd, s.mcapBand.maxUsd); mcapArmed = true; }
+      else $('mcap-readout').textContent = fmtMcap(s.mcapBand.minUsd) + ' – ' + fmtMcap(s.mcapBand.maxUsd);
+    }
     $('s-head').textContent = s.head ? s.head.toLocaleString() : '–';
     $('s-launch').textContent = fmt(s.counts.launches);
     const pull = false;
@@ -654,11 +717,12 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=89dc6e1').then(({ Observer }) => {
+  import('./app.js?v=6bae3d8').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
     onSelect = (a) => obs.loadWallet(a);
+    setMcapBand = (lo, hi) => obs.setMcapBand(lo, hi);
     obs.start(paint).catch(() => setConn(false, 'upstream unreachable'));
   }).catch(() => setConn(false, 'failed to load pipeline'));
 
