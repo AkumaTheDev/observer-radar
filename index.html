@@ -148,7 +148,7 @@
 <main>
   <section class="panel" style="grid-column:1/-1">
     <h2>Live launches <span class="n" id="n-launch"></span>
-      <span class="hint">first pool for a token we have never seen — sub-second, deduped across providers</span></h2>
+      <span class="hint">first pool in the last 20 minutes — old coins opening another venue are in New pools</span></h2>
     <div class="scroll"><table>
       <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">holders</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
       <tbody id="t-launch"><tr><td colspan="13" class="empty">waiting for the first pool…</td></tr></tbody>
@@ -157,7 +157,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">$1,000 book · max 3 × $100 clips · +30% or dump when the tape dies · same coin OK</span></h2>
+      <span class="hint">ONE name · acceleration in the $0.2–18M band · ride it, dump when the tape dies · survives refresh</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -379,7 +379,7 @@
                     <td class="num ${money>=0?'ok':'bad'}">${money>=0?'+':''}$${Math.abs(money).toFixed(2)}${ret!==null?` <span class="dim">${(ret*100).toFixed(0)}%</span>`:''}</td>
                     <td class="${live?'ok':'dim'}" style="white-space:normal;font-size:11px">${live?'open':esc(p.reason)}</td></tr>`;
                 }).join('')}</tbody></table>`
-              : '<div class="empty">waiting for a tape — $100 clips on accelerating / CT-hot names, max 3 at once. Same coin can print again 20s after an exit.</div>'}</div>
+              : '<div class="empty">waiting for one accelerator in the $0.2–18M band (the 4M mcap play). Book and baselines survive refresh.</div>'}</div>
           </div>
           <div>
             <div class="sechead">Decision log — why it acted, and why it did not</div>
@@ -544,7 +544,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=6c37c4a').then(({ Observer }) => {
+  import('./app.js?v=9241b2a').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
