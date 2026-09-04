@@ -453,7 +453,11 @@
                   const deployed = p.notional + (p.fills[0] ? p.fills[0].gasUsd : 0);
                   const money = live ? p.qty*p.markPrice - deployed : p.realizedUsd;
                   const ret = deployed ? money/deployed : 0;
-                  return `<tr><td class="sym">${esc(p.symbol)}</td>
+                  const chart = p.token ? `https://dexscreener.com/robinhood/${encodeURIComponent(p.token)}` : '';
+                  const name = chart
+                    ? `<a class="tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="open ${esc(p.symbol)} on DexScreener">${esc(p.symbol)}</a>`
+                    : `<span class="sym">${esc(p.symbol)}</span>`;
+                  return `<tr><td>${name}</td>
                     <td class="num">$${p.notional.toFixed(0)}</td>
                     <td class="num">${p.entryEffective.toPrecision(3)}</td>
                     <td class="num">${p.markPrice.toPrecision(3)}</td>
@@ -645,7 +649,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=979f62e').then(({ Observer }) => {
+  import('./app.js?v=16debed').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
