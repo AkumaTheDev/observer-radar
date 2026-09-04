@@ -178,7 +178,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Who is buying <span class="n" id="n-buy"></span>
-      <span class="hint">what they bought on the tape · click a row for the rest</span></h2>
+      <span class="hint">click the wallet for holdings on the explorer · row for the rest</span></h2>
     <div class="scroll"><table>
       <thead><tr><th>wallet</th><th>operator</th><th class="num">entered</th><th class="num">launches</th><th class="num">buys</th><th class="num">sells</th><th>bought</th></tr></thead>
       <tbody id="t-buy"><tr><td colspan="7" class="empty">resolving buyers behind the routers…<br><span style="font-size:11px">a v4 swap log names the router, not the person — the real wallet is one lookup deeper.</span></td></tr></tbody>
@@ -188,7 +188,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Spike whales <span class="n" id="n-whale"></span>
-      <span class="hint">buy then +8% in 12m · click a name to chart it</span></h2>
+      <span class="hint">click the wallet for holdings · a name for DexScreener</span></h2>
     <div class="scroll" style="max-height:280px"><table>
       <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>in</th><th>rotation</th></tr></thead>
       <tbody id="t-whale"><tr><td colspan="6" class="empty">resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind</td></tr></tbody>
@@ -331,8 +331,8 @@
             <button type="button" class="load-rest" data-load-wallet="${esc(b.address)}">click to load the rest of details</button>
             <div class="gasnote">One batched RPC: transaction count, native ETH, and balanceOf for tokens we watched them trade. There is no free indexer, so this is not "everything they hold".</div></div>`;
     box.innerHTML = `<div class="drawer">
-        <h3>Wallet detail</h3>
-        <div class="wa" style="margin-bottom:10px">${esc(b.address)}</div>
+        <h3>${b.ens ? esc(b.ens) : 'Wallet detail'}</h3>
+        <div class="wa" style="margin-bottom:10px"><a class="tok-link" href="${esc(explorerUrl(b.address, b.explorer))}" target="_blank" rel="noopener noreferrer" title="holdings on explorer">${esc(b.address)}</a></div>
         <div class="dgrid">
           <div><h3>On the tape</h3>
             <div class="kv"><span>Launches entered</span><b>${b.launches}</b></div>
@@ -502,6 +502,11 @@
     // ── buyers ──────────────────────────────────────────────────────────
     $('n-buy').textContent = s.buyers.length ? `(${s.buyers.length})` : '';
     const short = (a) => a.slice(0, 8) + '…' + a.slice(-4);
+    const explorerUrl = (a, href) => href || `https://robinhoodchain.blockscout.com/address/${encodeURIComponent(a)}?tab=tokens`;
+    const walletLink = (a, ens, href) => {
+      const label = ens || short(a);
+      return `<a class="wa tok-link" href="${esc(explorerUrl(a, href))}" target="_blank" rel="noopener noreferrer" title="${esc(a)} — holdings on explorer">${esc(label)}</a>`;
+    };
     const lag = (v) => v === null || v === undefined ? '<span class="dim">—</span>'
       : v < 60 ? `<span class="ok">${Math.round(v)}s</span>`
       : v < 600 ? `${Math.round(v)}s` : `${(v/60).toFixed(0)}m`;
@@ -510,7 +515,7 @@
         .map(h => `<span class="hold buy" title="${h.buys} buy${h.buys===1?'':'s'}"><b>${esc(h.symbol)}</b>${h.buys>1?' ×'+h.buys:''}</span>`)
         .join('') || '<span class="dim">—</span>';
       return `<tr class="wal${selected===b.address?' sel':''}" data-w="${esc(b.address)}" tabindex="0">
-        <td class="wa">${short(b.address)}</td>
+        <td>${walletLink(b.address, b.ens, b.explorer)}</td>
         <td>${b.cluster ? `<span class="tag clust" title="looks like one operator running several wallets — counted once, not as independent confirmations">${esc(b.cluster)}</span>` : '<span class="dim">—</span>'}</td>
         <td class="num">${lag(b.medianEntryLagS)}</td>
         <td class="num ${b.launches>1?'ok':''}">${b.launches}</td>
@@ -541,7 +546,7 @@
         ? (w.inNow ? hop(innSym, innChart) : `<span class="dim">${hop(innSym, innChart)}</span>`)
         : '<span class="dim">—</span>';
       return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
-        <td class="wa">${short(w.address)}</td>
+        <td>${walletLink(w.address, w.ens, w.explorer)}</td>
         <td class="num ${w.wins>=2?'ok':''}">${w.wins}<span class="dim">/${w.scored||0}</span></td>
         <td class="num ${wr>=50?'ok':wr>=30?'mid':'dim'}">${wr}%</td>
         <td class="num">${realized}</td>
@@ -649,7 +654,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=16debed').then(({ Observer }) => {
+  import('./app.js?v=e5a39e8').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
