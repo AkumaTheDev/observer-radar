@@ -87,6 +87,20 @@
   .gasrow .aux{color:var(--dim);font-size:11px;margin-left:auto;text-align:right}
   .gasbig{font-size:22px;font-weight:700;color:var(--acc);font-variant-numeric:tabular-nums}
   .gasnote{color:var(--faint);font-size:10.5px;line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid #131a23}
+  tr.wal{cursor:pointer}
+  tr.wal.sel{background:#16202e}
+  tr.wal:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+  .hold{display:inline-block;margin-right:5px;color:var(--dim);font-size:11px}
+  .hold b{color:var(--txt);font-weight:600}
+  .drawer{border-top:1px solid var(--line);background:#0c1219;padding:14px}
+  .drawer h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;font-weight:600}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:12px;border-bottom:1px solid #131a23}
+  .kv:last-child{border-bottom:none}
+  .kv span{color:var(--faint)} .kv b{font-weight:600;font-variant-numeric:tabular-nums}
+  .wa{font-size:11.5px;color:var(--cool);word-break:break-all}
+  .fresh{color:var(--warn)}
+  .tag.clust{background:rgba(255,95,109,.1);color:var(--hot);border:1px solid rgba(255,95,109,.26)}
   .new{animation:flash 1.6s ease-out}
   @keyframes flash{from{background:rgba(61,220,151,.16)}to{background:transparent}}
   footer{padding:10px 18px 24px;color:var(--faint);font-size:11px;border-top:1px solid var(--line);margin-top:6px}
@@ -118,10 +132,29 @@
 <main>
   <section class="panel" style="grid-column:1/-1">
     <h2>Live launches <span class="n" id="n-launch"></span>
-      <span class="hint">every new Uniswap v4 pool, sub-second, deduped across providers</span></h2>
+      <span class="hint">first pool for a token we have never seen — sub-second, deduped across providers</span></h2>
     <div class="scroll"><table>
       <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
       <tbody id="t-launch"><tr><td colspan="12" class="empty">waiting for the first pool…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel" style="grid-column:1/-1">
+    <h2>Who is buying <span class="n" id="n-buy"></span>
+      <span class="hint">real wallets behind the router · click a row for portfolio</span></h2>
+    <div class="scroll"><table>
+      <thead><tr><th>wallet</th><th>operator</th><th class="num">entered</th><th class="num">launches</th><th class="num">buys</th><th class="num">sells</th><th class="num">txs ever</th><th class="num">ETH</th><th class="num">portfolio</th><th>holdings</th></tr></thead>
+      <tbody id="t-buy"><tr><td colspan="10" class="empty">resolving buyers behind the routers…<br><span style="font-size:11px">a v4 swap log names the router, not the person — the real wallet is one lookup deeper.</span></td></tr></tbody>
+    </table></div>
+    <div id="wallet-detail"></div>
+  </section>
+
+  <section class="panel">
+    <h2>New pools, existing tokens <span class="n" id="n-np"></span>
+      <span class="hint">a second venue, not a launch</span></h2>
+    <div class="scroll" style="max-height:240px"><table>
+      <thead><tr><th>token</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th></tr></thead>
+      <tbody id="t-np"><tr><td colspan="4" class="empty">none yet</td></tr></tbody>
     </table></div>
   </section>
 
@@ -173,6 +206,23 @@
   const $ = (id) => document.getElementById(id);
   const seen = new Set();
   let first = true;
+  let selected = null;
+  let onSelect = () => {};
+  document.addEventListener('click', (e) => {
+    const tr = e.target.closest('tr.wal');
+    if (!tr) return;
+    const a = tr.getAttribute('data-w');
+    selected = selected === a ? null : a;
+    document.querySelectorAll('tr.wal').forEach(r => r.classList.toggle('sel', r.getAttribute('data-w') === selected));
+    if (selected) onSelect(selected);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const tr = e.target.closest && e.target.closest('tr.wal');
+    if (!tr) return;
+    e.preventDefault();
+    tr.click();
+  });
 
   const fmt = (n) => n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M'
     : n >= 1e3 ? (n/1e3).toFixed(0)+'k' : String(Math.round(n||0));
@@ -252,6 +302,69 @@
         <td class="num">${lag}</td></tr>`;
     }, 'waiting for the first pool…');
 
+    // ── buyers ──────────────────────────────────────────────────────────
+    $('n-buy').textContent = s.buyers.length ? `(${s.buyers.length})` : '';
+    const short = (a) => a.slice(0, 8) + '…' + a.slice(-4);
+    const lag = (v) => v === null || v === undefined ? '<span class="dim">—</span>'
+      : v < 60 ? `<span class="ok">${Math.round(v)}s</span>`
+      : v < 600 ? `${Math.round(v)}s` : `${(v/60).toFixed(0)}m`;
+    rows($('t-buy'), s.buyers, 10, (b) => {
+      // A very low nonce is the fresh-wallet-swarm tell: the cheapest honest answer to
+      // "is this a trader, or an address minted to fake a crowd".
+      const nonce = b.nonce === null ? '<span class="dim">…</span>'
+        : b.nonce < 5 ? `<span class="fresh" title="brand new wallet">${b.nonce}</span>` : String(b.nonce);
+      const hold = b.holdings.length
+        ? b.holdings.slice(0,4).map(h=>`<span class="hold"><b>${esc(h.symbol)}</b> ${h.amount>=1?fmt(h.amount):h.amount.toPrecision(2)}</span>`).join('')
+        : (b.loaded ? '<span class="dim">no balances</span>' : '<span class="dim">click to load</span>');
+      return `<tr class="wal" data-w="${esc(b.address)}" tabindex="0">
+        <td class="wa">${short(b.address)}</td>
+        <td>${b.cluster ? `<span class="tag clust" title="looks like one operator running several wallets — counted once, not as independent confirmations">${esc(b.cluster)}</span>` : '<span class="dim">—</span>'}</td>
+        <td class="num">${lag(b.medianEntryLagS)}</td>
+        <td class="num ${b.launches>1?'ok':''}">${b.launches}</td>
+        <td class="num">${b.buys}</td>
+        <td class="num ${b.sells?'':'dim'}">${b.sells}</td>
+        <td class="num">${nonce}</td>
+        <td class="num">${b.nativeEth===null?'<span class="dim">…</span>':b.nativeEth.toFixed(4)}</td>
+        <td class="num">${b.holdingsUsd===null?'<span class="dim">…</span>':usd(b.holdingsUsd)}</td>
+        <td>${hold}</td></tr>`;
+    }, 'resolving buyers behind the routers…<br><span style="font-size:11px">a v4 swap log names the router, not the person — the real wallet is one lookup deeper.</span>');
+
+    if (selected) {
+      const b = s.buyers.find(x => x.address === selected);
+      $('wallet-detail').innerHTML = !b ? '' : `<div class="drawer">
+        <h3>Wallet detail</h3>
+        <div class="wa" style="margin-bottom:10px">${esc(b.address)}
+          <a href="https://dexscreener.com/robinhood" target="_blank" rel="noopener noreferrer" style="display:none"></a></div>
+        <div class="dgrid">
+          <div><h3>Position</h3>
+            <div class="kv"><span>Native ETH</span><b>${b.nativeEth===null?'…':b.nativeEth.toFixed(6)}</b></div>
+            <div class="kv"><span>Portfolio (tracked)</span><b>${b.holdingsUsd===null?'…':usd(b.holdingsUsd)}</b></div>
+            <div class="kv"><span>Transactions ever</span><b class="${b.nonce!==null&&b.nonce<5?'fresh':''}">${b.nonce??'…'}</b></div>
+            <div class="kv"><span>Launches entered</span><b>${b.launches}</b></div>
+            <div class="kv"><span>Median entry</span><b>${b.medianEntryLagS===null?'—':Math.round(b.medianEntryLagS)+'s after pool'}</b></div>
+            <div class="kv"><span>Buys / sells</span><b>${b.buys} / ${b.sells}</b></div>
+            <div class="kv"><span>Operator cluster</span><b>${b.cluster ? '<span class="bad">'+esc(b.cluster)+'</span>' : 'none detected'}</b></div>
+          </div>
+          <div><h3>Holdings (tokens we watched them trade)</h3>
+            ${b.holdings.length ? b.holdings.map(h=>`<div class="kv"><span>${esc(h.symbol)}</span><b>${h.amount>=1?fmt(h.amount):h.amount.toPrecision(3)}${h.usd!==null?' · '+usd(h.usd):''}</b></div>`).join('')
+              : '<div class="kv"><span>loading…</span><b></b></div>'}
+          </div>
+          <div><h3>Recent trades</h3>
+            ${b.trades.map(t=>`<div class="kv"><span>${t.isBuy?'<span class="ok">BUY</span>':'<span class="bad">SELL</span>'} ${esc(t.symbol)}</span><b>${t.entryLagS!==null?Math.round(t.entryLagS)+'s':''} <span class="dim">${hhmmss(t.at)}</span></b></div>`).join('')}
+          </div>
+        </div>
+        <div class="gasnote">Portfolio covers the tokens this session watched this wallet trade, plus native ETH — there is no free indexer on this chain, so "everything they hold" is not answerable. Balances are read with balanceOf in one batched call.</div>
+      </div>`;
+    }
+
+    $('n-np').textContent = s.newPools.length ? `(${s.newPools.length})` : '';
+    rows($('t-np'), s.newPools, 4, (l) => `<tr>
+        <td><a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(l.token)}" target="_blank" rel="noopener noreferrer">${esc(l.symbol)}</a></td>
+        <td><span class="tag tok">${esc(l.quoteSymbol||'?')}</span></td>
+        <td class="num">${l.liqUsd===undefined?'<span class="dim">—</span>':usd(l.liqUsd)}</td>
+        <td class="num">${l.vol24===undefined?'<span class="dim">—</span>':usd(l.vol24)}</td></tr>`,
+      'none yet — an existing token opening another pool will show here');
+
     $('n-move').textContent = s.movers.length ? `(${s.movers.length})` : '';
     rows($('t-move'), s.movers, 6, (m) => {
       const pct = Math.round(m.score*100);
@@ -305,6 +418,9 @@
   import('./app.js').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
+    // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
+    // they are fetched for the row someone actually asked about, never for all of them.
+    onSelect = (a) => obs.loadWallet(a);
     obs.start(paint).catch(() => setConn(false, 'upstream unreachable'));
   }).catch(() => setConn(false, 'failed to load pipeline'));
 
