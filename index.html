@@ -565,7 +565,10 @@
           <div>
             <div class="sechead">Decision log — why it acted, and why it did not</div>
             <div class="scroll" style="max-height:210px">${
-              s.decisions.length ? s.decisions.map(d=>`<div class="dec ${d.taken?'take':'skip'}"><span class="t">${hhmmss(d.at)}</span><b>${esc(d.symbol)}</b><span>${esc(d.why)}</span></div>`).join('')
+              s.decisions.length ? s.decisions.map(d=>`<div class="dec ${d.taken?'take':'skip'}"><span class="t">${hhmmss(d.at)}</span>${
+                d.token ? `<a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(d.token)}" target="_blank" rel="noopener noreferrer" title="${esc(d.token)} — open chart">${esc(d.symbol)}</a>`
+                        : `<b>${esc(d.symbol)}</b>`
+              }<span>${esc(d.why)}</span></div>`).join('')
               : '<div class="empty">watching…</div>'}</div>
           </div>
         </div>`;
@@ -750,7 +753,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=c8cd557').then(({ Observer }) => {
+  import('./app.js').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
