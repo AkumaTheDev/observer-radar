@@ -164,7 +164,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">ONE name · high volume · chart going up · $0.2–18M · 5% stop</span></h2>
+      <span class="hint">ONE name · high volume · chart going up · $0.2–18M · 5% all-in stop off the tape</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -429,8 +429,9 @@
             <div class="scroll" style="max-height:210px">${
               a.open.length || a.closed.length ? `<table><thead><tr><th>token</th><th class="num">size</th><th class="num">entry</th><th class="num">mark</th><th class="num">P&amp;L</th><th>state</th></tr></thead><tbody>${
                 [...a.open.map(p=>({p,live:true})), ...a.closed.slice(0,12).map(p=>({p,live:false}))].map(({p,live}) => {
-                  const ret = live ? (p.markPrice - p.entryEffective)/p.entryEffective : null;
-                  const money = live ? p.qty*p.markPrice - (p.notional + p.fills[0].gasUsd) : p.realizedUsd;
+                  const deployed = p.notional + (p.fills[0] ? p.fills[0].gasUsd : 0);
+                  const money = live ? p.qty*p.markPrice - deployed : p.realizedUsd;
+                  const ret = deployed ? money/deployed : 0;
                   return `<tr><td class="sym">${esc(p.symbol)}</td>
                     <td class="num">$${p.notional.toFixed(0)}</td>
                     <td class="num">${p.entryEffective.toPrecision(3)}</td>
@@ -575,7 +576,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=b607317').then(({ Observer }) => {
+  import('./app.js?v=e032438').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
