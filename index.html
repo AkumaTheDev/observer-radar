@@ -94,6 +94,13 @@
   tr.dexrow:hover{background:#111823}
   .hold{display:inline-block;margin-right:5px;color:var(--dim);font-size:11px}
   .hold b{color:var(--txt);font-weight:600}
+  .hold.buy b{color:var(--acc)}
+  .load-rest{
+    display:inline-block;margin-top:6px;padding:7px 11px;border-radius:4px;cursor:pointer;
+    border:1px solid var(--line);background:#111823;color:var(--txt);font:inherit;
+  }
+  .load-rest:hover{border-color:var(--acc);color:var(--acc)}
+  .load-rest:disabled{opacity:.6;cursor:wait}
   .drawer{border-top:1px solid var(--line);background:#0c1219;padding:14px}
   .drawer h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;font-weight:600}
   .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
@@ -169,10 +176,10 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Who is buying <span class="n" id="n-buy"></span>
-      <span class="hint">real wallets behind the router · click a row for portfolio</span></h2>
+      <span class="hint">what they bought on the tape · click a row for the rest</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>wallet</th><th>operator</th><th class="num">entered</th><th class="num">launches</th><th class="num">buys</th><th class="num">sells</th><th class="num">txs ever</th><th class="num">ETH</th><th class="num">portfolio</th><th>holdings</th></tr></thead>
-      <tbody id="t-buy"><tr><td colspan="10" class="empty">resolving buyers behind the routers…<br><span style="font-size:11px">a v4 swap log names the router, not the person — the real wallet is one lookup deeper.</span></td></tr></tbody>
+      <thead><tr><th>wallet</th><th>operator</th><th class="num">entered</th><th class="num">launches</th><th class="num">buys</th><th class="num">sells</th><th>bought</th></tr></thead>
+      <tbody id="t-buy"><tr><td colspan="7" class="empty">resolving buyers behind the routers…<br><span style="font-size:11px">a v4 swap log names the router, not the person — the real wallet is one lookup deeper.</span></td></tr></tbody>
     </table></div>
     <div id="wallet-detail"></div>
   </section>
@@ -235,14 +242,26 @@
   const seen = new Set();
   let first = true;
   let selected = null;
+  let lastSnap = null;
   let onSelect = () => {};
   document.addEventListener('click', (e) => {
+    const loadBtn = e.target.closest('[data-load-wallet]');
+    if (loadBtn) {
+      const a = loadBtn.getAttribute('data-load-wallet');
+      if (a) {
+        loadBtn.disabled = true;
+        loadBtn.textContent = 'loading…';
+        onSelect(a);
+      }
+      return;
+    }
     const wal = e.target.closest('tr.wal');
     if (wal) {
       const a = wal.getAttribute('data-w');
       selected = selected === a ? null : a;
       document.querySelectorAll('tr.wal').forEach(r => r.classList.toggle('sel', r.getAttribute('data-w') === selected));
-      if (selected) onSelect(selected);
+      if (!selected) $('wallet-detail').innerHTML = '';
+      else paintBuyersDrawer();
       return;
     }
     if (e.target.closest('a.tok-link')) return;
@@ -272,7 +291,47 @@
     tbody.innerHTML = arr.map(render).join('');
   };
 
+  const paintBuyersDrawer = () => {
+    const box = $('wallet-detail');
+    if (!selected || !lastSnap) { box.innerHTML = ''; return; }
+    const b = lastSnap.buyers.find(x => x.address === selected);
+    if (!b) { box.innerHTML = ''; return; }
+    const bought = (b.bought && b.bought.length ? b.bought : [])
+      .map(h => `<div class="kv"><span>${esc(h.symbol)}</span><b>${h.buys} buy${h.buys===1?'':'s'}</b></div>`).join('')
+      || '<div class="kv"><span class="dim">no buys on the tape yet</span><b></b></div>';
+    const rest = b.loaded
+      ? `<div><h3>Loaded details</h3>
+            <div class="kv"><span>Native ETH</span><b>${b.nativeEth===null?'—':b.nativeEth.toFixed(6)}</b></div>
+            <div class="kv"><span>Portfolio (tracked)</span><b>${b.holdingsUsd===null?'—':usd(b.holdingsUsd)}</b></div>
+            <div class="kv"><span>Transactions ever</span><b class="${b.nonce!==null&&b.nonce<5?'fresh':''}">${b.nonce??'—'}</b></div>
+            ${b.holdings.length ? b.holdings.map(h=>`<div class="kv"><span>${esc(h.symbol)}</span><b>${h.amount>=1?fmt(h.amount):h.amount.toPrecision(3)}${h.usd!==null?' · '+usd(h.usd):''}</b></div>`).join('')
+              : '<div class="kv"><span class="dim">no remaining balances</span><b></b></div>'}</div>`
+      : `<div><h3>The rest</h3>
+            <div class="kv"><span>nonce · ETH · balances</span><b class="dim">not loaded</b></div>
+            <button type="button" class="load-rest" data-load-wallet="${esc(b.address)}">click to load the rest of details</button>
+            <div class="gasnote">One batched RPC: transaction count, native ETH, and balanceOf for tokens we watched them trade. There is no free indexer, so this is not "everything they hold".</div></div>`;
+    box.innerHTML = `<div class="drawer">
+        <h3>Wallet detail</h3>
+        <div class="wa" style="margin-bottom:10px">${esc(b.address)}</div>
+        <div class="dgrid">
+          <div><h3>On the tape</h3>
+            <div class="kv"><span>Launches entered</span><b>${b.launches}</b></div>
+            <div class="kv"><span>Median entry</span><b>${b.medianEntryLagS===null?'—':Math.round(b.medianEntryLagS)+'s after pool'}</b></div>
+            <div class="kv"><span>Buys / sells</span><b>${b.buys} / ${b.sells}</b></div>
+            <div class="kv"><span>Operator cluster</span><b>${b.cluster ? '<span class="bad">'+esc(b.cluster)+'</span>' : 'none detected'}</b></div>
+            ${bought}
+          </div>
+          ${rest}
+          <div><h3>Recent trades</h3>
+            ${b.trades.length ? b.trades.map(t=>`<div class="kv"><span>${t.isBuy?'<span class="ok">BUY</span>':'<span class="bad">SELL</span>'} ${esc(t.symbol)}</span><b>${t.entryLagS!==null?Math.round(t.entryLagS)+'s':''} <span class="dim">${hhmmss(t.at)}</span></b></div>`).join('')
+              : '<div class="kv"><span class="dim">none yet</span><b></b></div>'}
+          </div>
+        </div>
+      </div>`;
+  };
+
   function paint(s) {
+    lastSnap = s;
     $('s-head').textContent = s.head ? s.head.toLocaleString() : '–';
     $('s-launch').textContent = fmt(s.counts.launches);
     const pull = false;
@@ -416,54 +475,21 @@
     const lag = (v) => v === null || v === undefined ? '<span class="dim">—</span>'
       : v < 60 ? `<span class="ok">${Math.round(v)}s</span>`
       : v < 600 ? `${Math.round(v)}s` : `${(v/60).toFixed(0)}m`;
-    rows($('t-buy'), s.buyers, 10, (b) => {
-      // A very low nonce is the fresh-wallet-swarm tell: the cheapest honest answer to
-      // "is this a trader, or an address minted to fake a crowd".
-      const nonce = b.nonce === null ? '<span class="dim">…</span>'
-        : b.nonce < 5 ? `<span class="fresh" title="brand new wallet">${b.nonce}</span>` : String(b.nonce);
-      const hold = b.holdings.length
-        ? b.holdings.slice(0,4).map(h=>`<span class="hold"><b>${esc(h.symbol)}</b> ${h.amount>=1?fmt(h.amount):h.amount.toPrecision(2)}</span>`).join('')
-        : (b.loaded ? '<span class="dim">no balances</span>' : '<span class="dim">click to load</span>');
-      return `<tr class="wal" data-w="${esc(b.address)}" tabindex="0">
+    rows($('t-buy'), s.buyers, 7, (b) => {
+      const bought = (b.bought && b.bought.length ? b.bought : []).slice(0, 5)
+        .map(h => `<span class="hold buy" title="${h.buys} buy${h.buys===1?'':'s'}"><b>${esc(h.symbol)}</b>${h.buys>1?' ×'+h.buys:''}</span>`)
+        .join('') || '<span class="dim">—</span>';
+      return `<tr class="wal${selected===b.address?' sel':''}" data-w="${esc(b.address)}" tabindex="0">
         <td class="wa">${short(b.address)}</td>
         <td>${b.cluster ? `<span class="tag clust" title="looks like one operator running several wallets — counted once, not as independent confirmations">${esc(b.cluster)}</span>` : '<span class="dim">—</span>'}</td>
         <td class="num">${lag(b.medianEntryLagS)}</td>
         <td class="num ${b.launches>1?'ok':''}">${b.launches}</td>
         <td class="num">${b.buys}</td>
         <td class="num ${b.sells?'':'dim'}">${b.sells}</td>
-        <td class="num">${nonce}</td>
-        <td class="num">${b.nativeEth===null?'<span class="dim">…</span>':b.nativeEth.toFixed(4)}</td>
-        <td class="num">${b.holdingsUsd===null?'<span class="dim">…</span>':usd(b.holdingsUsd)}</td>
-        <td>${hold}</td></tr>`;
+        <td>${bought}</td></tr>`;
     }, 'resolving buyers behind the routers…<br><span style="font-size:11px">a v4 swap log names the router, not the person — the real wallet is one lookup deeper.</span>');
 
-    if (selected) {
-      const b = s.buyers.find(x => x.address === selected);
-      $('wallet-detail').innerHTML = !b ? '' : `<div class="drawer">
-        <h3>Wallet detail</h3>
-        <div class="wa" style="margin-bottom:10px">${esc(b.address)}
-          <a href="https://dexscreener.com/robinhood" target="_blank" rel="noopener noreferrer" style="display:none"></a></div>
-        <div class="dgrid">
-          <div><h3>Position</h3>
-            <div class="kv"><span>Native ETH</span><b>${b.nativeEth===null?'…':b.nativeEth.toFixed(6)}</b></div>
-            <div class="kv"><span>Portfolio (tracked)</span><b>${b.holdingsUsd===null?'…':usd(b.holdingsUsd)}</b></div>
-            <div class="kv"><span>Transactions ever</span><b class="${b.nonce!==null&&b.nonce<5?'fresh':''}">${b.nonce??'…'}</b></div>
-            <div class="kv"><span>Launches entered</span><b>${b.launches}</b></div>
-            <div class="kv"><span>Median entry</span><b>${b.medianEntryLagS===null?'—':Math.round(b.medianEntryLagS)+'s after pool'}</b></div>
-            <div class="kv"><span>Buys / sells</span><b>${b.buys} / ${b.sells}</b></div>
-            <div class="kv"><span>Operator cluster</span><b>${b.cluster ? '<span class="bad">'+esc(b.cluster)+'</span>' : 'none detected'}</b></div>
-          </div>
-          <div><h3>Holdings (tokens we watched them trade)</h3>
-            ${b.holdings.length ? b.holdings.map(h=>`<div class="kv"><span>${esc(h.symbol)}</span><b>${h.amount>=1?fmt(h.amount):h.amount.toPrecision(3)}${h.usd!==null?' · '+usd(h.usd):''}</b></div>`).join('')
-              : '<div class="kv"><span>loading…</span><b></b></div>'}
-          </div>
-          <div><h3>Recent trades</h3>
-            ${b.trades.map(t=>`<div class="kv"><span>${t.isBuy?'<span class="ok">BUY</span>':'<span class="bad">SELL</span>'} ${esc(t.symbol)}</span><b>${t.entryLagS!==null?Math.round(t.entryLagS)+'s':''} <span class="dim">${hhmmss(t.at)}</span></b></div>`).join('')}
-          </div>
-        </div>
-        <div class="gasnote">Portfolio covers the tokens this session watched this wallet trade, plus native ETH — there is no free indexer on this chain, so "everything they hold" is not answerable. Balances are read with balanceOf in one batched call.</div>
-      </div>`;
-    }
+    paintBuyersDrawer();
 
     $('n-np').textContent = s.newPools.length ? `(${s.newPools.length})` : '';
     rows($('t-np'), s.newPools, 4, (l) => `<tr>
@@ -544,11 +570,10 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=388fb14').then(({ Observer }) => {
+  import('./app.js?v=40093ac').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
-    // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
-    // they are fetched for the row someone actually asked about, never for all of them.
+    // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
     onSelect = (a) => obs.loadWallet(a);
     obs.start(paint).catch(() => setConn(false, 'upstream unreachable'));
   }).catch(() => setConn(false, 'failed to load pipeline'));
