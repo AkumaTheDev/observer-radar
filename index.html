@@ -157,8 +157,14 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">$2,000 · launches, accel, complex leaders, and flips · costs both ways</span></h2>
+      <span class="hint">$1,000 book · max 3 × $100 clips · +30% or dump when the tape dies · same coin OK</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
+  </section>
+
+  <section class="panel" style="grid-column:1/-1">
+    <h2>Crypto Twitter <span class="n" id="n-ct"></span>
+      <span class="hint">unique people on $ticker vs people who pasted the contract · legit score on the account</span></h2>
+    <div id="ct-box"><div class="empty">scraping public fronts…</div></div>
   </section>
 
   <section class="panel" style="grid-column:1/-1">
@@ -373,7 +379,7 @@
                     <td class="num ${money>=0?'ok':'bad'}">${money>=0?'+':''}$${Math.abs(money).toFixed(2)}${ret!==null?` <span class="dim">${(ret*100).toFixed(0)}%</span>`:''}</td>
                     <td class="${live?'ok':'dim'}" style="white-space:normal;font-size:11px">${live?'open':esc(p.reason)}</td></tr>`;
                 }).join('')}</tbody></table>`
-              : '<div class="empty">no positions yet — watching launches and accelerating pools. Needs a live price, ≥$4k liquidity, and a fill that will not move the pool a third.</div>'}</div>
+              : '<div class="empty">waiting for a tape — $100 clips on accelerating / CT-hot names, max 3 at once. Same coin can print again 20s after an exit.</div>'}</div>
           </div>
           <div>
             <div class="sechead">Decision log — why it acted, and why it did not</div>
@@ -382,6 +388,26 @@
               : '<div class="empty">watching…</div>'}</div>
           </div>
         </div>`;
+    }
+
+    const soc = s.social;
+    if (soc) {
+      $('n-ct').textContent = soc.posts ? `(${soc.posts} posts · ${soc.via.join(', ') || 'cooling'})` : '';
+      $('ct-box').innerHTML = soc.tickers.length
+        ? `<table><thead><tr><th>ticker</th><th class="num">people $</th><th class="num">people CA</th><th class="num">reputable</th><th class="num">legit</th><th>heat</th><th>sample</th></tr></thead><tbody>${
+            soc.tickers.slice(0, 12).map((t) => {
+              const pct = Math.round(t.heat * 100);
+              const legit = Math.round((t.avgLegit ?? 0) * 100);
+              return `<tr class="dexrow" data-dex="https://x.com/search?q=${encodeURIComponent('$' + t.ticker)}&f=live">
+                <td><a class="tok-link" href="https://x.com/search?q=${encodeURIComponent('$' + t.ticker)}&f=live" target="_blank" rel="noopener noreferrer">$${esc(t.ticker)}</a></td>
+                <td class="num" title="distinct people who typed the ticker">${t.tickerPeople ?? 0}</td>
+                <td class="num ${t.contractPeople ? 'ok' : 'dim'}" title="distinct people who pasted the 0x contract">${t.contractPeople ?? 0}</td>
+                <td class="num ${t.reputable ? 'ok' : 'dim'}" title="posters scoring ≥55 legit">${t.reputable ?? 0}</td>
+                <td class="num ${legit>=55?'ok':legit>=35?'mid':'bad'}">${legit}%</td>
+                <td><div class="bar"><i class="${pct>60?'hot':''}" style="width:${Math.max(6,pct)}%"></i></div></td>
+                <td class="dim" style="white-space:normal;font-size:11px">${esc((t.sample||'').slice(0,90))}</td></tr>`;
+            }).join('')}</tbody></table>`
+        : `<div class="empty">no cashtag or contract hits yet — racing public fronts${soc.via.length ? ` via ${esc(soc.via.join(', '))}` : ''}. A $TICKER from a bot farm is noise; a real account pasting the 0x is the tell.</div>`;
     }
 
     // ── buyers ──────────────────────────────────────────────────────────
@@ -518,7 +544,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=6716bf7').then(({ Observer }) => {
+  import('./app.js?v=6c37c4a').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
