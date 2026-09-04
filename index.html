@@ -185,10 +185,10 @@
         <b id="mcap-readout">$1M – $80M</b>
       </div>
       <span class="lab">min</span>
-      <label><input type="range" id="mcap-min" min="0" max="17" step="1" value="3"></label>
+      <label><input type="range" id="mcap-min" min="0" max="18" step="1" value="4"></label>
       <span class="lab" id="mcap-min-v">$1M</span>
       <span class="lab">max</span>
-      <label><input type="range" id="mcap-max" min="0" max="17" step="1" value="14"></label>
+      <label><input type="range" id="mcap-max" min="0" max="18" step="1" value="15"></label>
       <span class="lab" id="mcap-max-v">$80M</span>
     </div>
     <div id="acct"><div class="empty">arming…</div></div>
@@ -289,7 +289,9 @@
   let lastSnap = null;
   let onSelect = () => {};
   let setMcapBand = (_lo, _hi) => {};
-  const MCAP_STOPS = [1e5,2.5e5,5e5,1e6,2e6,3e6,5e6,8e6,1e7,1.5e7,2e7,3e7,4e7,6e7,8e7,1e8,1.5e8,2.5e8];
+  const MCAP_STOPS = [35e3,1e5,2.5e5,5e5,1e6,2e6,3e6,5e6,8e6,1e7,1.5e7,2e7,3e7,4e7,6e7,8e7,1e8,1.5e8,2.5e8];
+  $('mcap-min').max = String(MCAP_STOPS.length - 1);
+  $('mcap-max').max = String(MCAP_STOPS.length - 1);
   const fmtMcap = (n) => n >= 1e6
     ? '$' + (Number.isInteger(n/1e6) ? (n/1e6) : (n/1e6).toFixed(1)) + 'M'
     : '$' + Math.round(n/1e3) + 'k';
@@ -717,7 +719,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=6bae3d8').then(({ Observer }) => {
+  import('./app.js?v=a125dfa').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
