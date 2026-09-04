@@ -166,7 +166,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">buy instantly after a spike-whale print · 5% off fill · bank 18–32%</span></h2>
+      <span class="hint">fire on pending whale swap · 5% off fill · bank 18–32%</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -188,7 +188,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Spike whales <span class="n" id="n-whale"></span>
-      <span class="hint">buy then +8% in 12m · we fill the instant they print, we do not ape the bag later</span></h2>
+      <span class="hint">buy then +8% in 12m · we fill the second their swap hits the mempool</span></h2>
     <div class="scroll" style="max-height:280px"><table>
       <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>in</th><th>rotation</th></tr></thead>
       <tbody id="t-whale"><tr><td colspan="6" class="empty">resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind</td></tr></tbody>
@@ -636,7 +636,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=d37e6ef').then(({ Observer }) => {
+  import('./app.js?v=ce18467').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
