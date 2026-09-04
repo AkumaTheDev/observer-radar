@@ -188,7 +188,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Spike whales <span class="n" id="n-whale"></span>
-      <span class="hint">buy then +8% in 12m · we fill the second their swap hits the mempool</span></h2>
+      <span class="hint">buy then +8% in 12m · click a name to chart it</span></h2>
     <div class="scroll" style="max-height:280px"><table>
       <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>in</th><th>rotation</th></tr></thead>
       <tbody id="t-whale"><tr><td colspan="6" class="empty">resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind</td></tr></tbody>
@@ -275,6 +275,7 @@
       }
       return;
     }
+    if (e.target.closest('a.tok-link')) return;
     const wal = e.target.closest('tr.wal');
     if (wal) {
       const a = wal.getAttribute('data-w');
@@ -284,7 +285,6 @@
       else paintBuyersDrawer();
       return;
     }
-    if (e.target.closest('a.tok-link')) return;
     const dex = e.target.closest('tr.dexrow');
     const href = dex && dex.getAttribute('data-dex');
     if (href) window.open(href, '_blank', 'noopener,noreferrer');
@@ -520,13 +520,22 @@
     $('n-whale').textContent = (s.whales && s.whales.length) ? `(${s.whales.length})` : '';
     rows($('t-whale'), s.whales || [], 6, (w) => {
       const wr = Math.round((w.winRate || 0) * 100);
-      const rot = (w.rotation || []).map((x) => `<span class="hold buy"><b>${esc(x)}</b></span>`).join('<span class="dim"> → </span>');
+      const hop = (sym, chart) => chart
+        ? `<a class="hold buy tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="open ${esc(sym)} on DexScreener"><b>${esc(sym)}</b></a>`
+        : `<span class="hold buy"><b>${esc(sym)}</b></span>`;
+      const rot = (w.rotation || []).map((x) => {
+        const sym = typeof x === 'string' ? x : x.symbol;
+        const chart = typeof x === 'string' ? '' : (x.chart || (x.token ? `https://dexscreener.com/robinhood/${encodeURIComponent(x.token)}` : ''));
+        return hop(sym, chart);
+      }).join('<span class="dim"> → </span>');
       const realized = w.realizedPct === undefined || w.realizedPct === null
         ? '<span class="dim">—</span>'
         : `<span class="${w.realizedPct>=0?'ok':'bad'}">${w.realizedPct>=0?'+':''}${(w.realizedPct*100).toFixed(0)}%</span>`;
-      const inn = w.inNow
-        ? `<span class="ok">${esc(w.inNow)}</span>`
-        : (w.lastSymbol ? `<span class="dim">${esc(w.lastSymbol)}</span>` : '<span class="dim">—</span>');
+      const innSym = w.inNow || w.lastSymbol;
+      const innChart = w.inNowChart || w.lastChart;
+      const inn = innSym
+        ? (w.inNow ? hop(innSym, innChart) : `<span class="dim">${hop(innSym, innChart)}</span>`)
+        : '<span class="dim">—</span>';
       return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
         <td class="wa">${short(w.address)}</td>
         <td class="num ${w.wins>=2?'ok':''}">${w.wins}<span class="dim">/${w.scored||0}</span></td>
@@ -636,7 +645,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=ce18467').then(({ Observer }) => {
+  import('./app.js?v=979f62e').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
