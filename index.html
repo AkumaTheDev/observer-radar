@@ -166,7 +166,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">A+ only · $1M+ · never chase · 5% off fill · bank 18–32%</span></h2>
+      <span class="hint">spike-whale print · not copy-trade · 5% off fill · bank 18–32%</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -187,11 +187,11 @@
   </section>
 
   <section class="panel" style="grid-column:1/-1">
-    <h2>Winning wallets <span class="n" id="n-whale"></span>
-      <span class="hint">buys that marked up ≥3% · rotation is where they walked next</span></h2>
-    <div class="scroll" style="max-height:260px"><table>
-      <thead><tr><th>wallet</th><th>operator</th><th class="num">win</th><th class="num">scored</th><th class="num">venues</th><th>rotation</th></tr></thead>
-      <tbody id="t-whale"><tr><td colspan="6" class="empty">watching fills — a wallet needs a few priced buys before skill means anything</td></tr></tbody>
+    <h2>Spike whales <span class="n" id="n-whale"></span>
+      <span class="hint">buy then +8% in 12m · realized FIFO · we take a fresh spike print, we do not copy-trade</span></h2>
+    <div class="scroll" style="max-height:280px"><table>
+      <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>in</th><th>rotation</th></tr></thead>
+      <tbody id="t-whale"><tr><td colspan="6" class="empty">resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind</td></tr></tbody>
     </table></div>
   </section>
 
@@ -521,14 +521,20 @@
     rows($('t-whale'), s.whales || [], 6, (w) => {
       const wr = Math.round((w.winRate || 0) * 100);
       const rot = (w.rotation || []).map((x) => `<span class="hold buy"><b>${esc(x)}</b></span>`).join('<span class="dim"> → </span>');
+      const realized = w.realizedPct === undefined || w.realizedPct === null
+        ? '<span class="dim">—</span>'
+        : `<span class="${w.realizedPct>=0?'ok':'bad'}">${w.realizedPct>=0?'+':''}${(w.realizedPct*100).toFixed(0)}%</span>`;
+      const inn = w.inNow
+        ? `<span class="ok">${esc(w.inNow)}</span>`
+        : (w.lastSymbol ? `<span class="dim">${esc(w.lastSymbol)}</span>` : '<span class="dim">—</span>');
       return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
         <td class="wa">${short(w.address)}</td>
-        <td>${w.cluster ? `<span class="tag clust">${esc(w.cluster)}</span>` : '<span class="dim">—</span>'}</td>
-        <td class="num ${wr>=55?'ok':wr>=40?'mid':'bad'}">${wr}%</td>
-        <td class="num">${w.wins}/${w.scored}</td>
-        <td class="num">${w.launches}</td>
+        <td class="num ${w.wins>=2?'ok':''}">${w.wins}<span class="dim">/${w.scored||0}</span></td>
+        <td class="num ${wr>=50?'ok':wr>=30?'mid':'dim'}">${wr}%</td>
+        <td class="num">${realized}</td>
+        <td>${inn}</td>
         <td>${rot || '<span class="dim">—</span>'}</td></tr>`;
-    }, 'watching fills — a wallet needs a few priced buys before skill means anything');
+    }, 'resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind');
 
     $('n-lp').textContent = (s.lpHeat && s.lpHeat.length) ? `(${s.lpHeat.length})` : '';
     rows($('t-lp'), s.lpHeat || [], 6, (r) => {
@@ -630,7 +636,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=b60b16f').then(({ Observer }) => {
+  import('./app.js?v=7d8219e').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
