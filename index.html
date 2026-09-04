@@ -157,7 +157,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">$2,000 start · trades launches AND accelerating pools · gas/fee/impact both ways</span></h2>
+      <span class="hint">$2,000 · launches, accel, complex leaders, and flips · costs both ways</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -191,7 +191,7 @@
 
   <section class="panel">
     <h2>Hottest complexes <span class="n" id="n-cx"></span>
-      <span class="hint">one stock anchor + every meme riding it</span></h2>
+      <span class="hint">click the leader to chart it · paper book trades these too</span></h2>
     <div class="scroll"><table>
       <thead><tr><th>anchor</th><th class="num">1h</th><th class="num">coins</th><th class="num">24h vol</th><th>leader</th></tr></thead>
       <tbody id="t-cx"><tr><td colspan="5" class="empty">loading anchor universe…</td></tr></tbody>
@@ -200,7 +200,7 @@
 
   <section class="panel">
     <h2>Leadership flips <span class="n" id="n-flip"></span>
-      <span class="hint">the crowd rotating inside a complex</span></h2>
+      <span class="hint">click the new leader · we take that side</span></h2>
     <div class="scroll" style="max-height:220px"><table>
       <thead><tr><th>anchor</th><th>from</th><th>to</th><th class="num">when</th></tr></thead>
       <tbody id="t-flip"><tr><td colspan="4" class="empty">no flips in the current window</td></tr></tbody>
@@ -462,19 +462,38 @@
     }, `nothing has cleared its baseline yet.<br><span style="font-size:11px">${s.counts.warming} pools still building one — new is not the same as accelerating.</span>`);
 
     $('n-cx').textContent = s.complexes.length ? `(${s.universe.anchors} anchors · ${fmt(s.universe.coins)} coins)` : '';
-    rows($('t-cx'), s.complexes, 5, (c) => `<tr>
-        <td><span class="tag anchor" title="${esc(c.name)}">${esc(c.anchor)}</span></td>
+    rows($('t-cx'), s.complexes, 5, (c) => {
+      const leaderChart = c.chart || (c.leaderAddress ? `https://dexscreener.com/robinhood/${encodeURIComponent(c.leaderAddress)}` : '');
+      const anchorChart = c.anchorAddress ? `https://dexscreener.com/robinhood/${encodeURIComponent(c.anchorAddress)}` : leaderChart;
+      return `<tr class="dexrow" data-dex="${esc(leaderChart)}">
+        <td>${anchorChart
+          ? `<a class="tag anchor tok-link" href="${esc(anchorChart)}" target="_blank" rel="noopener noreferrer" title="${esc(c.name)} — open ${esc(c.anchor)}">${esc(c.anchor)}</a>`
+          : `<span class="tag anchor" title="${esc(c.name)}">${esc(c.anchor)}</span>`}</td>
         <td class="num ${c.launches1h ? 'ok':'dim'}">${c.launches1h || '–'}</td>
         <td class="num dim">${c.coins}</td>
         <td class="num">${usd(c.vol24)}</td>
-        <td class="sym">${esc(c.leader)}</td></tr>`, 'loading anchor universe…');
+        <td>${leaderChart
+          ? `<a class="tok-link" href="${esc(leaderChart)}" target="_blank" rel="noopener noreferrer" title="${esc(c.leader)} — open on DexScreener">${esc(c.leader)}</a>`
+          : `<span class="sym">${esc(c.leader)}</span>`}</td></tr>`;
+    }, 'loading anchor universe…');
 
     $('n-flip').textContent = s.flips.length ? `(${s.flips.length})` : '';
-    rows($('t-flip'), s.flips, 4, (f) => `<tr>
-        <td><span class="tag anchor">${esc(f.anchorSymbol)}</span></td>
-        <td class="dim">${esc(f.from)}</td>
-        <td class="sym ok">${esc(f.to)}</td>
-        <td class="num dim">${hhmmss(f.ts)}</td></tr>`, 'no flips in the current window');
+    rows($('t-flip'), s.flips, 4, (f) => {
+      const toChart = f.toAddress ? `https://dexscreener.com/robinhood/${encodeURIComponent(f.toAddress)}` : '';
+      const fromChart = f.fromAddress ? `https://dexscreener.com/robinhood/${encodeURIComponent(f.fromAddress)}` : '';
+      const ancChart = f.anchor ? `https://dexscreener.com/robinhood/${encodeURIComponent(f.anchor)}` : '';
+      return `<tr class="dexrow" data-dex="${esc(toChart)}">
+        <td>${ancChart
+          ? `<a class="tag anchor tok-link" href="${esc(ancChart)}" target="_blank" rel="noopener noreferrer">${esc(f.anchorSymbol)}</a>`
+          : `<span class="tag anchor">${esc(f.anchorSymbol)}</span>`}</td>
+        <td>${fromChart
+          ? `<a class="tok-link dim" href="${esc(fromChart)}" target="_blank" rel="noopener noreferrer">${esc(f.from)}</a>`
+          : `<span class="dim">${esc(f.from)}</span>`}</td>
+        <td>${toChart
+          ? `<a class="tok-link" href="${esc(toChart)}" target="_blank" rel="noopener noreferrer" title="new leader — open on DexScreener">${esc(f.to)}</a>`
+          : `<span class="sym ok">${esc(f.to)}</span>`}</td>
+        <td class="num dim">${hhmmss(f.ts)}</td></tr>`;
+    }, 'no flips in the current window');
 
     rows($('t-rpc'), s.providers, 5, (p) => `<tr>
         <td>${p.healthy ? '' : '<span class="bad">! </span>'}${esc(p.provider)}</td>
@@ -499,7 +518,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=9d8afc6').then(({ Observer }) => {
+  import('./app.js?v=6716bf7').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
