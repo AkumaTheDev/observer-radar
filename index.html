@@ -109,6 +109,8 @@
   .kv span{color:var(--faint)} .kv b{font-weight:600;font-variant-numeric:tabular-nums}
   .wa{font-size:11.5px;color:var(--cool);word-break:break-all}
   .fresh{color:var(--warn)}
+  .ctwho{color:var(--cool);font-weight:600}
+  .ctpost{white-space:normal;font-size:11px;color:var(--dim);max-width:340px}
   .tag.clust{background:rgba(255,95,109,.1);color:var(--hot);border:1px solid rgba(255,95,109,.26)}
   .acct{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
   .acell{background:var(--panel);padding:11px 13px}
@@ -170,7 +172,7 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Crypto Twitter <span class="n" id="n-ct"></span>
-      <span class="hint">unique people on $ticker vs people who pasted the contract · legit score on the account</span></h2>
+      <span class="hint">click a post for the tweet · correlated with acceleration when the tape agrees</span></h2>
     <div id="ct-box"><div class="empty">scraping public fronts…</div></div>
   </section>
 
@@ -195,9 +197,9 @@
 
   <section class="panel">
     <h2>Accelerating <span class="n" id="n-move"></span>
-      <span class="hint">high volume + chart up is what we buy</span></h2>
+      <span class="hint">high volume + chart up · CT is why it might be ripping</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">60s</th><th class="num">vol</th><th class="num">5m</th><th class="num">wallets</th><th class="num">holders</th></tr></thead>
+      <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">60s</th><th class="num">vol</th><th class="num">5m</th><th class="num">wallets</th><th>why</th></tr></thead>
       <tbody id="t-move"><tr><td colspan="9" class="empty">nothing has cleared its baseline yet.<br><span style="font-size:11px">a pool must be watched for 4 minutes before acceleration means anything.</span></td></tr></tbody>
     </table></div>
   </section>
@@ -454,18 +456,22 @@
     if (soc) {
       $('n-ct').textContent = soc.posts ? `(${soc.posts} posts · ${soc.via.join(', ') || 'cooling'})` : '';
       $('ct-box').innerHTML = soc.tickers.length
-        ? `<table><thead><tr><th>ticker</th><th class="num">people $</th><th class="num">people CA</th><th class="num">reputable</th><th class="num">legit</th><th>heat</th><th>sample</th></tr></thead><tbody>${
+        ? `<table><thead><tr><th>ticker</th><th class="num">accel</th><th>who</th><th>post</th><th class="num">people $</th><th class="num">CA</th><th>heat</th></tr></thead><tbody>${
             soc.tickers.slice(0, 12).map((t) => {
               const pct = Math.round(t.heat * 100);
-              const legit = Math.round((t.avgLegit ?? 0) * 100);
-              return `<tr class="dexrow" data-dex="https://x.com/search?q=${encodeURIComponent('$' + t.ticker)}&f=live">
-                <td><a class="tok-link" href="https://x.com/search?q=${encodeURIComponent('$' + t.ticker)}&f=live" target="_blank" rel="noopener noreferrer">$${esc(t.ticker)}</a></td>
+              const tweet = t.url || (t.posts && t.posts[0] && t.posts[0].url) || ('https://x.com/search?q=' + encodeURIComponent('$' + t.ticker) + '&f=live');
+              const who = t.handle || (t.posts && t.posts[0] && t.posts[0].handle) || '';
+              const profile = who && who !== 'unknown' && who !== 'x' && who !== 'web' ? `https://x.com/${encodeURIComponent(who.replace(/^@/, ''))}` : tweet;
+              const body = (t.sample || (t.posts && t.posts[0] && t.posts[0].text) || '').slice(0, 110);
+              const ripping = t.accelRatio !== undefined && t.accelRatio >= 1.5;
+              return `<tr class="dexrow" data-dex="${esc(tweet)}">
+                <td><a class="tok-link" href="${esc(tweet)}" target="_blank" rel="noopener noreferrer">$${esc(t.ticker)}</a></td>
+                <td class="num ${ripping ? 'ok' : 'dim'}">${t.accelRatio !== undefined ? t.accelRatio.toFixed(1) + '×' : '—'}</td>
+                <td>${who ? `<a class="ctwho tok-link" href="${esc(profile)}" target="_blank" rel="noopener noreferrer">@${esc(who.replace(/^@/, ''))}</a>` : '<span class="dim">—</span>'}</td>
+                <td class="ctpost"><a class="tok-link" href="${esc(tweet)}" target="_blank" rel="noopener noreferrer" style="color:inherit;border-bottom-color:rgba(123,135,148,.35)">${esc(body)}</a></td>
                 <td class="num" title="distinct people who typed the ticker">${t.tickerPeople ?? 0}</td>
                 <td class="num ${t.contractPeople ? 'ok' : 'dim'}" title="distinct people who pasted the 0x contract">${t.contractPeople ?? 0}</td>
-                <td class="num ${t.reputable ? 'ok' : 'dim'}" title="posters scoring ≥55 legit">${t.reputable ?? 0}</td>
-                <td class="num ${legit>=55?'ok':legit>=35?'mid':'bad'}">${legit}%</td>
-                <td><div class="bar"><i class="${pct>60?'hot':''}" style="width:${Math.max(6,pct)}%"></i></div></td>
-                <td class="dim" style="white-space:normal;font-size:11px">${esc((t.sample||'').slice(0,90))}</td></tr>`;
+                <td><div class="bar"><i class="${pct>60?'hot':''}" style="width:${Math.max(6,pct)}%"></i></div></td></tr>`;
             }).join('')}</tbody></table>`
         : `<div class="empty">no cashtag or contract hits yet — racing public fronts${soc.via.length ? ` via ${esc(soc.via.join(', '))}` : ''}. A $TICKER from a bot farm is noise; a real account pasting the 0x is the tell.</div>`;
     }
@@ -507,6 +513,9 @@
       const chg = m.chgM5 ?? m.chgH1;
       const chgCls = chg === undefined ? 'dim' : chg >= 2 ? 'ok' : chg < 0 ? 'bad' : 'mid';
       const chgTxt = chg === undefined ? '—' : `${chg>=0?'+':''}${chg.toFixed(0)}%`;
+      const why = m.ctUrl || m.ctHandle
+        ? `<a class="tok-link" href="${esc(m.ctUrl || chart)}" target="_blank" rel="noopener noreferrer" title="${esc(m.ctText || '')}">${m.ctHandle ? `<span class="ctwho">@${esc(m.ctHandle)}</span> ` : ''}<span class="dim">${esc((m.ctText||'').slice(0,48))}</span></a>`
+        : holders(m.holders);
       return `<tr class="dexrow" data-dex="${esc(chart)}">
         <td><a class="tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="open on DexScreener">${esc(m.symbol)}</a></td>
         <td>${m.anchor ? `<span class="tag anchor">${esc(m.anchor)}</span>` : '<span class="dim">—</span>'}</td>
@@ -516,7 +525,7 @@
         <td class="num">${m.vol24===undefined?'<span class="dim">—</span>':usd(m.vol24)}</td>
         <td class="num ${chgCls}">${chgTxt}</td>
         <td class="num">${m.uniqueTraders}</td>
-        <td class="num">${holders(m.holders)}</td></tr>`;
+        <td class="ctpost">${why}</td></tr>`;
     }, `nothing has cleared its baseline yet.<br><span style="font-size:11px">${s.counts.warming} pools still building one — new is not the same as accelerating.</span>`);
 
     $('n-cx').textContent = s.complexes.length ? `(${s.universe.anchors} anchors · ${fmt(s.universe.coins)} coins)` : '';
@@ -576,7 +585,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=13617a1').then(({ Observer }) => {
+  import('./app.js?v=a6b025f').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
