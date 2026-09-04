@@ -101,6 +101,20 @@
   .wa{font-size:11.5px;color:var(--cool);word-break:break-all}
   .fresh{color:var(--warn)}
   .tag.clust{background:rgba(255,95,109,.1);color:var(--hot);border:1px solid rgba(255,95,109,.26)}
+  .acct{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+  .acell{background:var(--panel);padding:11px 13px}
+  .acell .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .acell .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .acell .s{font-size:10.5px;color:var(--dim);margin-top:1px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .split > div{min-width:0}
+  .split > div + div{border-left:1px solid var(--line)}
+  .sechead{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .dec{padding:5px 12px;border-bottom:1px solid #131a23;font-size:11.5px;display:flex;gap:8px}
+  .dec:last-child{border-bottom:none}
+  .dec .t{color:var(--faint);flex:none}
+  .dec.take{color:var(--txt)} .dec.skip{color:var(--faint)}
+  @media (max-width:760px){ .split{grid-template-columns:1fr} .split > div + div{border-left:none;border-top:1px solid var(--line)} }
   .new{animation:flash 1.6s ease-out}
   @keyframes flash{from{background:rgba(61,220,151,.16)}to{background:transparent}}
   footer{padding:10px 18px 24px;color:var(--faint);font-size:11px;border-top:1px solid var(--line);margin-top:6px}
@@ -134,9 +148,15 @@
     <h2>Live launches <span class="n" id="n-launch"></span>
       <span class="hint">first pool for a token we have never seen — sub-second, deduped across providers</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
-      <tbody id="t-launch"><tr><td colspan="12" class="empty">waiting for the first pool…</td></tr></tbody>
+      <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">holders</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
+      <tbody id="t-launch"><tr><td colspan="13" class="empty">waiting for the first pool…</td></tr></tbody>
     </table></div>
+  </section>
+
+  <section class="panel" style="grid-column:1/-1">
+    <h2>Paper account <span class="n" id="n-acct"></span>
+      <span class="hint">$2,000 start · live prices · gas, fee and price impact charged both ways</span></h2>
+    <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
   <section class="panel" style="grid-column:1/-1">
@@ -162,8 +182,8 @@
     <h2>Accelerating <span class="n" id="n-move"></span>
       <span class="hint">velocity vs own baseline, not size</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">60s</th><th class="num">wallets</th></tr></thead>
-      <tbody id="t-move"><tr><td colspan="6" class="empty">nothing has cleared its baseline yet.<br><span style="font-size:11px">a pool must be watched for 4 minutes before acceleration means anything.</span></td></tr></tbody>
+      <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">60s</th><th class="num">wallets</th><th class="num">holders</th></tr></thead>
+      <tbody id="t-move"><tr><td colspan="7" class="empty">nothing has cleared its baseline yet.<br><span style="font-size:11px">a pool must be watched for 4 minutes before acceleration means anything.</span></td></tr></tbody>
     </table></div>
   </section>
 
@@ -269,7 +289,14 @@
 
     const infra = s.counts.infra ? ` · ${s.counts.infra} quote/quote pools filtered` : '';
     $('n-launch').textContent = (s.launches.length ? `(${s.launches.length})` : '') + infra;
-    rows($('t-launch'), s.launches, 12, (l) => {
+    const holders = (h) => {
+      if (!h || !h.fills) return '<span class="dim">—</span>';
+      if (!h.holding) return `<span class="dim" title="${h.traders} wallets traded, none still holding">${h.traders} out</span>`;
+      return `<span class="ok" title="still holding, cost basis below last fill">${h.inProfit}↑</span>`
+        + ` <span class="dim">/</span> `
+        + `<span class="bad" title="still holding, cost basis above last fill">${h.underwater}↓</span>`;
+    };
+    rows($('t-launch'), s.launches, 13, (l) => {
       const isNew = !seen.has(l.poolId);
       if (!first) seen.add(l.poolId); else seen.add(l.poolId);
       // DexScreener resolves a bare token address on this chain, so the launched token is
@@ -297,10 +324,57 @@
         <td class="num">${money(l.vol24)}</td>
         <td class="num">${price}</td>
         <td class="num">${l.swaps||0}</td><td class="num">${l.buyers||0}</td>
+        <td class="num">${holders(l.holders)}</td>
         <td class="num dim">${l.block}</td>
         <td class="addr">${esc(l.via)}</td>
         <td class="num">${lag}</td></tr>`;
     }, 'waiting for the first pool…');
+
+    // ── paper account ───────────────────────────────────────────────────
+    const a = s.account;
+    if (a) {
+      const pnl = a.equityUsd - a.startingUsd;
+      const pct = (pnl / a.startingUsd) * 100;
+      const cls = pnl >= 0 ? 'ok' : 'bad';
+      const costs = a.gasPaidUsd + a.feesPaidUsd + a.impactPaidUsd;
+      $('n-acct').textContent = `(${a.open.length} open · ${a.closed.length} closed)`;
+      $('acct').innerHTML = `
+        <div class="acct">
+          <div class="acell"><div class="k">Equity</div><div class="v ${cls}">$${a.equityUsd.toFixed(2)}</div>
+            <div class="s">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} · ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div></div>
+          <div class="acell"><div class="k">Cash</div><div class="v">$${a.cashUsd.toFixed(2)}</div><div class="s">of $${a.startingUsd}</div></div>
+          <div class="acell"><div class="k">Realized</div><div class="v ${a.realizedUsd>=0?'ok':'bad'}">$${a.realizedUsd.toFixed(2)}</div>
+            <div class="s">${a.wins}W / ${a.losses}L</div></div>
+          <div class="acell"><div class="k">Unrealized</div><div class="v ${a.unrealizedUsd>=0?'ok':'bad'}">$${a.unrealizedUsd.toFixed(2)}</div>
+            <div class="s">${a.open.length} open</div></div>
+          <div class="acell"><div class="k">Costs paid</div><div class="v mid">$${costs.toFixed(2)}</div>
+            <div class="s">gas $${a.gasPaidUsd.toFixed(2)} · fee $${a.feesPaidUsd.toFixed(2)} · impact $${a.impactPaidUsd.toFixed(2)}</div></div>
+        </div>
+        <div class="split">
+          <div>
+            <div class="sechead">Positions</div>
+            <div class="scroll" style="max-height:210px">${
+              a.open.length || a.closed.length ? `<table><thead><tr><th>token</th><th class="num">size</th><th class="num">entry</th><th class="num">mark</th><th class="num">P&amp;L</th><th>state</th></tr></thead><tbody>${
+                [...a.open.map(p=>({p,live:true})), ...a.closed.slice(0,12).map(p=>({p,live:false}))].map(({p,live}) => {
+                  const ret = live ? (p.markPrice - p.entryEffective)/p.entryEffective : null;
+                  const money = live ? p.qty*p.markPrice - (p.notional + p.fills[0].gasUsd) : p.realizedUsd;
+                  return `<tr><td class="sym">${esc(p.symbol)}</td>
+                    <td class="num">$${p.notional.toFixed(0)}</td>
+                    <td class="num">${p.entryEffective.toPrecision(3)}</td>
+                    <td class="num">${p.markPrice.toPrecision(3)}</td>
+                    <td class="num ${money>=0?'ok':'bad'}">${money>=0?'+':''}$${Math.abs(money).toFixed(2)}${ret!==null?` <span class="dim">${(ret*100).toFixed(0)}%</span>`:''}</td>
+                    <td class="${live?'ok':'dim'}" style="white-space:normal;font-size:11px">${live?'open':esc(p.reason)}</td></tr>`;
+                }).join('')}</tbody></table>`
+              : '<div class="empty">no positions yet — the rules require a resolved anchor, ≥4 distinct non-clustered buyers, and ≥$15k liquidity inside the first 6 minutes.</div>'}</div>
+          </div>
+          <div>
+            <div class="sechead">Decision log — why it acted, and why it did not</div>
+            <div class="scroll" style="max-height:210px">${
+              s.decisions.length ? s.decisions.map(d=>`<div class="dec ${d.taken?'take':'skip'}"><span class="t">${hhmmss(d.at)}</span><b>${esc(d.symbol)}</b><span>${esc(d.why)}</span></div>`).join('')
+              : '<div class="empty">watching…</div>'}</div>
+          </div>
+        </div>`;
+    }
 
     // ── buyers ──────────────────────────────────────────────────────────
     $('n-buy').textContent = s.buyers.length ? `(${s.buyers.length})` : '';
@@ -366,7 +440,7 @@
       'none yet — an existing token opening another pool will show here');
 
     $('n-move').textContent = s.movers.length ? `(${s.movers.length})` : '';
-    rows($('t-move'), s.movers, 6, (m) => {
+    rows($('t-move'), s.movers, 7, (m) => {
       const pct = Math.round(m.score*100);
       return `<tr>
         <td><a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(m.token)}" target="_blank" rel="noopener noreferrer">${esc(m.symbol)}</a></td>
@@ -374,7 +448,8 @@
         <td><div class="bar"><i class="${pct>70?'hot':''}" style="width:${pct}%"></i></div></td>
         <td class="num">${m.ratio.toFixed(1)}×</td>
         <td class="num">${m.events}</td>
-        <td class="num">${m.uniqueTraders}</td></tr>`;
+        <td class="num">${m.uniqueTraders}</td>
+        <td class="num">${holders(m.holders)}</td></tr>`;
     }, `nothing has cleared its baseline yet.<br><span style="font-size:11px">${s.counts.warming} pools still building one — new is not the same as accelerating.</span>`);
 
     $('n-cx').textContent = s.complexes.length ? `(${s.universe.anchors} anchors · ${fmt(s.universe.coins)} coins)` : '';
@@ -415,7 +490,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js').then(({ Observer }) => {
+  import('./app.js?v=fc7e9b3').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
