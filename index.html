@@ -159,14 +159,14 @@
     <h2>Live launches <span class="n" id="n-launch"></span>
       <span class="hint">first pool in the last 20 minutes — old coins opening another venue are in New pools</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">holders</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
-      <tbody id="t-launch"><tr><td colspan="13" class="empty">waiting for the first pool…</td></tr></tbody>
+      <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">mcap</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">holders</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
+      <tbody id="t-launch"><tr><td colspan="14" class="empty">waiting for the first pool…</td></tr></tbody>
     </table></div>
   </section>
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">$100 clips · take 10–30% · 5% max stop off the tape</span></h2>
+      <span class="hint">$100 clips · $1M+ mcap · take 10–30% · 5% max stop</span></h2>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
 
@@ -186,12 +186,30 @@
     <div id="wallet-detail"></div>
   </section>
 
+  <section class="panel" style="grid-column:1/-1">
+    <h2>Winning wallets <span class="n" id="n-whale"></span>
+      <span class="hint">buys that marked up ≥3% · rotation is where they walked next</span></h2>
+    <div class="scroll" style="max-height:260px"><table>
+      <thead><tr><th>wallet</th><th>operator</th><th class="num">win</th><th class="num">scored</th><th class="num">venues</th><th>rotation</th></tr></thead>
+      <tbody id="t-whale"><tr><td colspan="6" class="empty">watching fills — a wallet needs a few priced buys before skill means anything</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <h2>LP crowding <span class="n" id="n-lp"></span>
+      <span class="hint">people adding liquidity · extra venues on the same token</span></h2>
+    <div class="scroll" style="max-height:260px"><table>
+      <thead><tr><th>token</th><th class="num">LP 5m</th><th class="num">venues</th><th class="num">liq</th><th class="num">vol</th><th class="num">mcap</th></tr></thead>
+      <tbody id="t-lp"><tr><td colspan="6" class="empty">waiting for ModifyLiquidity on the tape</td></tr></tbody>
+    </table></div>
+  </section>
+
   <section class="panel">
     <h2>New pools, existing tokens <span class="n" id="n-np"></span>
       <span class="hint">a second venue, not a launch</span></h2>
     <div class="scroll" style="max-height:240px"><table>
-      <thead><tr><th>token</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th></tr></thead>
-      <tbody id="t-np"><tr><td colspan="4" class="empty">none yet</td></tr></tbody>
+      <thead><tr><th>token</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">mcap</th></tr></thead>
+      <tbody id="t-np"><tr><td colspan="5" class="empty">none yet</td></tr></tbody>
     </table></div>
   </section>
 
@@ -199,7 +217,7 @@
     <h2>Accelerating <span class="n" id="n-move"></span>
       <span class="hint">high volume + chart up · CT is why it might be ripping</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">60s</th><th class="num">vol</th><th class="num">5m</th><th class="num">wallets</th><th>why</th></tr></thead>
+      <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">vol</th><th class="num">mcap</th><th class="num">5m</th><th class="num">lp</th><th>why</th></tr></thead>
       <tbody id="t-move"><tr><td colspan="9" class="empty">nothing has cleared its baseline yet.<br><span style="font-size:11px">a pool must be watched for 4 minutes before acceleration means anything.</span></td></tr></tbody>
     </table></div>
   </section>
@@ -371,7 +389,7 @@
         + ` <span class="dim">/</span> `
         + `<span class="bad" title="still holding, cost basis above last fill">${h.underwater}↓</span>`;
     };
-    rows($('t-launch'), s.launches, 13, (l) => {
+    rows($('t-launch'), s.launches, 14, (l) => {
       const isNew = !seen.has(l.poolId);
       if (!first) seen.add(l.poolId); else seen.add(l.poolId);
       // DexScreener resolves a bare token address on this chain, so the launched token is
@@ -397,6 +415,7 @@
         <td>${anchor}</td><td>${pair}</td>
         <td class="num">${money(l.liqUsd)}</td>
         <td class="num">${money(l.vol24)}</td>
+        <td class="num">${money(l.mcapUsd)}</td>
         <td class="num">${price}</td>
         <td class="num">${l.swaps||0}</td><td class="num">${l.buyers||0}</td>
         <td class="num">${holders(l.holders)}</td>
@@ -441,7 +460,7 @@
                     <td class="num ${money>=0?'ok':'bad'}">${money>=0?'+':''}$${Math.abs(money).toFixed(2)}${ret!==null?` <span class="dim">${(ret*100).toFixed(0)}%</span>`:''}</td>
                     <td class="${live?'ok':'dim'}" style="white-space:normal;font-size:11px">${live?'open':esc(p.reason)}</td></tr>`;
                 }).join('')}</tbody></table>`
-              : '<div class="empty">$100 a clip · bank 10–30% · 5% max stop on the live print. Book survives refresh.</div>'}</div>
+              : '<div class="empty">$100 a clip · $1M+ mcap · bank 10–30% · 5% max stop. Book survives refresh.</div>'}</div>
           </div>
           <div>
             <div class="sechead">Decision log — why it acted, and why it did not</div>
@@ -498,12 +517,38 @@
 
     paintBuyersDrawer();
 
+    $('n-whale').textContent = (s.whales && s.whales.length) ? `(${s.whales.length})` : '';
+    rows($('t-whale'), s.whales || [], 6, (w) => {
+      const wr = Math.round((w.winRate || 0) * 100);
+      const rot = (w.rotation || []).map((x) => `<span class="hold buy"><b>${esc(x)}</b></span>`).join('<span class="dim"> → </span>');
+      return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
+        <td class="wa">${short(w.address)}</td>
+        <td>${w.cluster ? `<span class="tag clust">${esc(w.cluster)}</span>` : '<span class="dim">—</span>'}</td>
+        <td class="num ${wr>=55?'ok':wr>=40?'mid':'bad'}">${wr}%</td>
+        <td class="num">${w.wins}/${w.scored}</td>
+        <td class="num">${w.launches}</td>
+        <td>${rot || '<span class="dim">—</span>'}</td></tr>`;
+    }, 'watching fills — a wallet needs a few priced buys before skill means anything');
+
+    $('n-lp').textContent = (s.lpHeat && s.lpHeat.length) ? `(${s.lpHeat.length})` : '';
+    rows($('t-lp'), s.lpHeat || [], 6, (r) => {
+      const chart = r.chart || `https://dexscreener.com/robinhood/${encodeURIComponent(r.token)}`;
+      return `<tr class="dexrow" data-dex="${esc(chart)}">
+        <td><a class="tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer">${esc(r.symbol)}</a></td>
+        <td class="num ${r.adds5m>=4?'ok':''}">${r.adds5m}</td>
+        <td class="num ${r.newPools>=2?'ok':''}">${r.newPools}</td>
+        <td class="num">${r.liqUsd===undefined?'<span class="dim">—</span>':usd(r.liqUsd)}</td>
+        <td class="num">${r.vol24===undefined?'<span class="dim">—</span>':usd(r.vol24)}</td>
+        <td class="num">${r.mcapUsd===undefined?'<span class="dim">—</span>':usd(r.mcapUsd)}</td></tr>`;
+    }, 'waiting for ModifyLiquidity on the tape');
+
     $('n-np').textContent = s.newPools.length ? `(${s.newPools.length})` : '';
-    rows($('t-np'), s.newPools, 4, (l) => `<tr>
+    rows($('t-np'), s.newPools, 5, (l) => `<tr>
         <td><a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(l.token)}" target="_blank" rel="noopener noreferrer">${esc(l.symbol)}</a></td>
         <td><span class="tag tok">${esc(l.quoteSymbol||'?')}</span></td>
         <td class="num">${l.liqUsd===undefined?'<span class="dim">—</span>':usd(l.liqUsd)}</td>
-        <td class="num">${l.vol24===undefined?'<span class="dim">—</span>':usd(l.vol24)}</td></tr>`,
+        <td class="num">${l.vol24===undefined?'<span class="dim">—</span>':usd(l.vol24)}</td>
+        <td class="num">${l.mcapUsd===undefined?'<span class="dim">—</span>':usd(l.mcapUsd)}</td></tr>`,
       'none yet — an existing token opening another pool will show here');
 
     $('n-move').textContent = s.movers.length ? `(${s.movers.length})` : '';
@@ -521,10 +566,10 @@
         <td>${m.anchor ? `<span class="tag anchor">${esc(m.anchor)}</span>` : '<span class="dim">—</span>'}</td>
         <td><div class="bar"><i class="${pct>70?'hot':''}" style="width:${pct}%"></i></div></td>
         <td class="num">${m.ratio.toFixed(1)}×</td>
-        <td class="num">${m.events}</td>
         <td class="num">${m.vol24===undefined?'<span class="dim">—</span>':usd(m.vol24)}</td>
+        <td class="num">${m.mcapUsd===undefined?'<span class="dim">—</span>':usd(m.mcapUsd)}</td>
         <td class="num ${chgCls}">${chgTxt}</td>
-        <td class="num">${m.uniqueTraders}</td>
+        <td class="num ${m.lpAdds5m?'ok':''}">${m.lpAdds5m||'—'}</td>
         <td class="ctpost">${why}</td></tr>`;
     }, `nothing has cleared its baseline yet.<br><span style="font-size:11px">${s.counts.warming} pools still building one — new is not the same as accelerating.</span>`);
 
@@ -585,7 +630,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=aec19c4').then(({ Observer }) => {
+  import('./app.js?v=9969133').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
