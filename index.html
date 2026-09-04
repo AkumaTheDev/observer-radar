@@ -188,7 +188,7 @@
 
   <section class="panel">
     <h2>Accelerating <span class="n" id="n-move"></span>
-      <span class="hint">velocity vs own baseline, not size</span></h2>
+      <span class="hint">velocity vs own baseline — a 12-swap burst shows immediately</span></h2>
     <div class="scroll"><table>
       <thead><tr><th>token</th><th>anchor</th><th>accel</th><th class="num">×</th><th class="num">60s</th><th class="num">wallets</th><th class="num">holders</th></tr></thead>
       <tbody id="t-move"><tr><td colspan="7" class="empty">nothing has cleared its baseline yet.<br><span style="font-size:11px">a pool must be watched for 4 minutes before acceleration means anything.</span></td></tr></tbody>
@@ -544,7 +544,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=9241b2a').then(({ Observer }) => {
+  import('./app.js?v=388fb14').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Clicking a wallet loads its portfolio on demand: balances are a batched RPC call, so
