@@ -57,18 +57,36 @@
   tbody tr:hover{background:#111823}
   .num{text-align:right;font-variant-numeric:tabular-nums}
   .sym{font-weight:600;color:#fff}
+  a.tok-link{
+    color:#fff;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.28);
+    transition:color .12s,border-color .12s;
+  }
+  a.tok-link:hover{color:var(--acc);border-bottom-color:var(--acc)}
+  a.tok-link::after{content:"↗";font-size:9px;color:var(--faint);margin-left:3px;vertical-align:super}
+  a.tok-link:hover::after{color:var(--acc)}
+  a.tag{text-decoration:none}
+  a.tag:hover{filter:brightness(1.35)}
   .addr{color:var(--faint);font-size:11px}
   .tag{
     display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.04em;
   }
   .tag.anchor{background:rgba(245,197,66,.13);color:var(--gold);border:1px solid rgba(245,197,66,.25)}
   .tag.eth{background:rgba(90,169,255,.1);color:var(--cool);border:1px solid rgba(90,169,255,.2)}
+  .tag.usdg{background:rgba(61,220,151,.1);color:var(--acc);border:1px solid rgba(61,220,151,.22)}
   .tag.tok{background:rgba(199,125,255,.12);color:#c77dff;border:1px solid rgba(199,125,255,.25)}
   .bar{height:4px;border-radius:2px;background:#1a222c;overflow:hidden;min-width:52px}
   .bar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--acc),var(--gold))}
   .bar i.hot{background:linear-gradient(90deg,var(--warn),var(--hot))}
   .ok{color:var(--acc)} .bad{color:var(--hot)} .mid{color:var(--warn)} .dim{color:var(--dim)}
   .empty{padding:26px 12px;text-align:center;color:var(--faint);font-size:12px;line-height:1.7}
+  .gasbox{padding:12px}
+  .gasrow{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid #131a23}
+  .gasrow:last-child{border-bottom:none}
+  .gasrow .lab{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.07em;min-width:96px}
+  .gasrow .val{font-variant-numeric:tabular-nums;font-weight:600;color:#fff}
+  .gasrow .aux{color:var(--dim);font-size:11px;margin-left:auto;text-align:right}
+  .gasbig{font-size:22px;font-weight:700;color:var(--acc);font-variant-numeric:tabular-nums}
+  .gasnote{color:var(--faint);font-size:10.5px;line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid #131a23}
   .new{animation:flash 1.6s ease-out}
   @keyframes flash{from{background:rgba(61,220,151,.16)}to{background:transparent}}
   footer{padding:10px 18px 24px;color:var(--faint);font-size:11px;border-top:1px solid var(--line);margin-top:6px}
@@ -90,6 +108,9 @@
     <div class="stat"><b id="s-swaps">–</b><span>swaps</span></div>
     <div class="stat"><b id="s-pools">–</b><span>pools</span></div>
     <div class="stat"><b id="s-detect">–</b><span>detect lag</span></div>
+    <div class="stat"><b id="s-gas">–</b><span>swap cost</span></div>
+    <div class="stat"><b id="s-gwei">–</b><span>gas</span></div>
+    <div class="stat"><b id="s-eth">–</b><span>eth</span></div>
     <div class="stat"><b id="s-up">–</b><span>uptime</span></div>
   </div>
 </header>
@@ -99,8 +120,8 @@
     <h2>Live launches <span class="n" id="n-launch"></span>
       <span class="hint">every new Uniswap v4 pool, sub-second, deduped across providers</span></h2>
     <div class="scroll"><table>
-      <thead><tr><th>time</th><th>token</th><th>anchor</th><th>pair</th><th class="num">swaps</th><th class="num">buyers</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
-      <tbody id="t-launch"><tr><td colspan="9" class="empty">waiting for the first pool…</td></tr></tbody>
+      <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
+      <tbody id="t-launch"><tr><td colspan="12" class="empty">waiting for the first pool…</td></tr></tbody>
     </table></div>
   </section>
 
@@ -129,6 +150,11 @@
       <thead><tr><th>anchor</th><th>from</th><th>to</th><th class="num">when</th></tr></thead>
       <tbody id="t-flip"><tr><td colspan="4" class="empty">no flips in the current window</td></tr></tbody>
     </table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Cost to trade <span class="hint">gas measured from real swap receipts</span></h2>
+    <div id="gas-body" class="gasbox"><div class="empty">reading gas…</div></div>
   </section>
 
   <section class="panel">
@@ -174,20 +200,52 @@
     det.className = d === null ? '' : d < 1500 ? 'ok' : d < 8000 ? 'mid' : 'bad';
     $('s-up').textContent = pull ? 'stateless' : ago(s.uptimeMs);
 
-    $('n-launch').textContent = s.launches.length ? `(${s.launches.length})` : '';
-    rows($('t-launch'), s.launches, 9, (l) => {
+    // Cost to trade — the number that decides whether a small position is even worth taking.
+    const g = s.gas;
+    $('s-gas').textContent = g?.usd ? '$' + g.usd.median.toFixed(2) : '–';
+    $('s-gwei').textContent = g?.gwei ? g.gwei.toFixed(2) + ' gwei' : '–';
+    $('s-eth').textContent = g?.ethUsd ? '$' + Math.round(g.ethUsd).toLocaleString() : '–';
+    $('gas-body').innerHTML = !g ? '<div class="empty">reading gas…</div>' : `
+      <div class="gasrow"><span class="lab">Typical swap</span>
+        <span class="gasbig">${g.usd ? '$' + g.usd.median.toFixed(2) : '—'}</span>
+        <span class="aux">${g.usd ? '$' + g.usd.min.toFixed(2) + ' – $' + g.usd.max.toFixed(2) + ' range' : 'awaiting eth price'}</span></div>
+      <div class="gasrow"><span class="lab">Gas price</span><span class="val">${g.gwei.toFixed(3)} gwei</span>
+        <span class="aux">${g.baseGwei !== null ? 'base ' + g.baseGwei.toFixed(3) : 'legacy pricing'}</span></div>
+      <div class="gasrow"><span class="lab">Swap gas</span><span class="val">${fmt(g.swapGas.median)}</span>
+        <span class="aux">${fmt(g.swapGas.min)} – ${fmt(g.swapGas.max)} units</span></div>
+      <div class="gasrow"><span class="lab">ETH</span><span class="val">${g.ethUsd ? '$' + g.ethUsd.toFixed(2) : '—'}</span>
+        <span class="aux">from priceUsd ÷ priceNative</span></div>
+      <div class="gasnote">Gas units are <b>measured from ${g.sampled ? g.sampled + ' live swap receipts' : 'sampled receipts'}</b>, not assumed. The range is real: a v4 swap costs 3–6× more with multiple hops or hooks than a direct one, so a single number would be wrong most of the time.</div>`;
+
+    const infra = s.counts.infra ? ` · ${s.counts.infra} quote/quote pools filtered` : '';
+    $('n-launch').textContent = (s.launches.length ? `(${s.launches.length})` : '') + infra;
+    rows($('t-launch'), s.launches, 12, (l) => {
       const isNew = !seen.has(l.poolId);
       if (!first) seen.add(l.poolId); else seen.add(l.poolId);
+      // DexScreener resolves a bare token address on this chain, so the launched token is
+      // one click from its chart — which is where anyone acting on this row goes next.
+      const dex = (a) => `https://dexscreener.com/robinhood/${encodeURIComponent(a)}`;
       const anchor = l.anchor
-        ? `<span class="tag anchor" title="${esc(l.anchorName||'')}">${esc(l.anchor)}</span>` : '<span class="dim">—</span>';
-      const pair = l.nativePaired
-        ? '<span class="tag eth">ETH</span>' : '<span class="tag tok">TOKEN</span>';
+        ? `<a class="tag anchor" href="${dex(l.anchorAddress || l.anchor)}" target="_blank" rel="noopener noreferrer" title="${esc(l.anchorName||'')} — open chart">${esc(l.anchor)}</a>`
+        : '<span class="dim">—</span>';
+      // Name the quote asset. "TOKEN" is useless — WHICH token is the whole point, because a
+      // pool quoted in a tokenized equity is the stock×meme structure we exist to catch.
+      const q = esc(l.quoteSymbol || '?');
+      const pair = l.quoteSymbol === 'ETH' ? '<span class="tag eth">ETH</span>'
+        : l.quoteSymbol === 'USDG' ? `<a class="tag usdg" href="${dex(l.quoteAddress)}" target="_blank" rel="noopener noreferrer">USDG</a>`
+        : `<a class="tag tok" href="${dex(l.quoteAddress)}" target="_blank" rel="noopener noreferrer" title="${esc(l.quoteAddress || '')} — open chart">${q}</a>`;
+      const money = (v) => v === undefined || v === null ? '<span class="dim">—</span>' : usd(v);
+      const price = l.priceUsd === undefined ? '<span class="dim">—</span>'
+        : '$' + (l.priceUsd < 0.01 ? l.priceUsd.toPrecision(2) : l.priceUsd.toFixed(4));
       const lag = l.detectMs < 1000 ? `<span class="ok">${l.detectMs}ms</span>`
         : `<span class="mid">${(l.detectMs/1000).toFixed(1)}s</span>`;
       return `<tr class="${isNew && !first ? 'new':''}">
         <td class="dim">${hhmmss(l.at)}</td>
-        <td class="sym">${esc(l.symbol)}</td>
+        <td><a class="tok-link" href="${dex(l.token)}" target="_blank" rel="noopener noreferrer" title="${esc(l.token)} — open on DexScreener">${esc(l.symbol)}</a></td>
         <td>${anchor}</td><td>${pair}</td>
+        <td class="num">${money(l.liqUsd)}</td>
+        <td class="num">${money(l.vol24)}</td>
+        <td class="num">${price}</td>
         <td class="num">${l.swaps||0}</td><td class="num">${l.buyers||0}</td>
         <td class="num dim">${l.block}</td>
         <td class="addr">${esc(l.via)}</td>
@@ -198,7 +256,7 @@
     rows($('t-move'), s.movers, 6, (m) => {
       const pct = Math.round(m.score*100);
       return `<tr>
-        <td class="sym">${esc(m.symbol)}</td>
+        <td><a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(m.token)}" target="_blank" rel="noopener noreferrer">${esc(m.symbol)}</a></td>
         <td>${m.anchor ? `<span class="tag anchor">${esc(m.anchor)}</span>` : '<span class="dim">—</span>'}</td>
         <td><div class="bar"><i class="${pct>70?'hot':''}" style="width:${pct}%"></i></div></td>
         <td class="num">${m.ratio.toFixed(1)}×</td>
