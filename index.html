@@ -193,15 +193,12 @@
     </div>
     <div class="mcap-ctrl" id="liq-ctrl">
       <div class="span">
-        <span class="k">liquidity band</span>
-        <b id="liq-readout">$40k – $10M</b>
+        <span class="k">min liquidity</span>
+        <b id="liq-readout">$40k+</b>
       </div>
       <span class="lab">min</span>
       <label><input type="range" id="liq-min" min="0" max="16" step="1" value="3"></label>
       <span class="lab" id="liq-min-v">$40k</span>
-      <span class="lab">max</span>
-      <label><input type="range" id="liq-max" min="0" max="16" step="1" value="15"></label>
-      <span class="lab" id="liq-max-v">$10M</span>
     </div>
     <div id="acct"><div class="empty">arming…</div></div>
   </section>
@@ -301,7 +298,7 @@
   let lastSnap = null;
   let onSelect = () => {};
   let setMcapBand = (_lo, _hi) => {};
-  let setLiqBand = (_lo, _hi) => {};
+  let setLiqMin = (_n) => {};
   const fmtUsd = (n) => n >= 1e6
     ? '$' + (Number.isInteger(n/1e6) ? (n/1e6) : (n/1e6).toFixed(1)) + 'M'
     : '$' + Math.round(n/1e3) + 'k';
@@ -338,7 +335,22 @@
   const MCAP_STOPS = [35e3,1e5,2.5e5,5e5,1e6,2e6,3e6,5e6,8e6,1e7,1.5e7,2e7,3e7,4e7,6e7,8e7,1e8,1.5e8,2.5e8];
   const LIQ_STOPS = [1e4,2e4,35e3,4e4,5e4,75e3,1e5,1.5e5,2.5e5,4e5,5e5,7.5e5,1e6,2e6,5e6,1e7,2e7];
   const mcapBand = bindBand(MCAP_STOPS, 'mcap-min', 'mcap-max', 'mcap-min-v', 'mcap-max-v', 'mcap-readout', (lo, hi) => setMcapBand(lo, hi));
-  const liqBand = bindBand(LIQ_STOPS, 'liq-min', 'liq-max', 'liq-min-v', 'liq-max-v', 'liq-readout', (lo, hi) => setLiqBand(lo, hi));
+  const liqMinEl = $('liq-min');
+  liqMinEl.max = String(LIQ_STOPS.length - 1);
+  let liqArmed = false;
+  const syncLiqUi = (usd) => {
+    const v = LIQ_STOPS.reduce((b, s) => Math.abs(s-usd) < Math.abs(b-usd) ? s : b, LIQ_STOPS[0]);
+    const i = LIQ_STOPS.indexOf(v);
+    liqMinEl.value = String(i < 0 ? 3 : i);
+    $('liq-min-v').textContent = fmtUsd(v);
+    $('liq-readout').textContent = fmtUsd(v) + '+';
+  };
+  liqMinEl.addEventListener('input', () => {
+    const v = LIQ_STOPS[Number(liqMinEl.value)];
+    $('liq-min-v').textContent = fmtUsd(v);
+    $('liq-readout').textContent = fmtUsd(v) + '+';
+    setLiqMin(v);
+  });
   document.addEventListener('click', (e) => {
     const loadBtn = e.target.closest('[data-load-wallet]');
     if (loadBtn) {
@@ -431,9 +443,9 @@
       if (!mcapBand.armed) { mcapBand.sync(s.mcapBand.minUsd, s.mcapBand.maxUsd); mcapBand.armed = true; }
       else $('mcap-readout').textContent = fmtUsd(s.mcapBand.minUsd) + ' – ' + fmtUsd(s.mcapBand.maxUsd);
     }
-    if (s.liqBand) {
-      if (!liqBand.armed) { liqBand.sync(s.liqBand.minUsd, s.liqBand.maxUsd); liqBand.armed = true; }
-      else $('liq-readout').textContent = fmtUsd(s.liqBand.minUsd) + ' – ' + fmtUsd(s.liqBand.maxUsd);
+    if (s.liqMinUsd !== undefined) {
+      if (!liqArmed) { syncLiqUi(s.liqMinUsd); liqArmed = true; }
+      else $('liq-readout').textContent = fmtUsd(s.liqMinUsd) + '+';
     }
     $('s-head').textContent = s.head ? s.head.toLocaleString() : '–';
     $('s-launch').textContent = fmt(s.counts.launches);
@@ -738,13 +750,13 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=c1cfa17').then(({ Observer }) => {
+  import('./app.js?v=c8cd557').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
     onSelect = (a) => obs.loadWallet(a);
     setMcapBand = (lo, hi) => obs.setMcapBand(lo, hi);
-    setLiqBand = (lo, hi) => obs.setLiqBand(lo, hi);
+    setLiqMin = (n) => obs.setLiqMin(n);
     obs.start(paint).catch(() => setConn(false, 'upstream unreachable'));
   }).catch(() => setConn(false, 'failed to load pipeline'));
 
