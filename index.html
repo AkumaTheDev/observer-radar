@@ -112,6 +112,19 @@
   .ctwho{color:var(--cool);font-weight:600}
   .ctpost{white-space:normal;font-size:11px;color:var(--dim);max-width:340px}
   .tag.clust{background:rgba(255,95,109,.1);color:var(--hot);border:1px solid rgba(255,95,109,.26)}
+  .burst{border-bottom:1px solid var(--line)}
+  .burst:last-child{border-bottom:none}
+  .bhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#101722}
+  .bhead .why{color:var(--dim);font-size:11.5px}
+  .bhead .cnt{font-weight:700;font-variant-numeric:tabular-nums}
+  .tag.virgin{background:rgba(199,125,255,.14);color:#c77dff;border:1px solid rgba(199,125,255,.3)}
+  .pick{display:flex;align-items:center;gap:10px;padding:6px 12px 6px 26px;border-top:1px solid #131a23;font-size:12px}
+  .pick .rank{color:var(--faint);width:14px;flex:none;font-variant-numeric:tabular-nums}
+  .pick .nm{font-weight:600;min-width:96px}
+  .pick .sc{width:56px;flex:none}
+  .pick .vd{color:var(--dim);font-size:11.5px;min-width:0}
+  .pick.lead{background:rgba(61,220,151,.05)}
+  .pick.blocked .nm{color:var(--faint);text-decoration:line-through}
   .acct{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
   .acell{background:var(--panel);padding:11px 13px}
   .acell .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
@@ -174,6 +187,12 @@
       <thead><tr><th>time</th><th>token</th><th>anchor</th><th>quoted in</th><th class="num">liquidity</th><th class="num">24h vol</th><th class="num">mcap</th><th class="num">price</th><th class="num">swaps</th><th class="num">routes</th><th class="num">holders</th><th class="num">blk</th><th>via</th><th class="num">lag</th></tr></thead>
       <tbody id="t-launch"><tr><td colspan="14" class="empty">waiting for the first pool…</td></tr></tbody>
     </table></div>
+  </section>
+
+  <section class="panel" style="grid-column:1/-1">
+    <h2>Anchor bursts <span class="n" id="n-burst"></span>
+      <span class="hint">a crowd racing to mint the right coin on one stock — and which contender looks destined</span></h2>
+    <div id="bursts"><div class="empty">watching for a crowd to converge on one anchor…<br><span style="font-size:11px">several different tokens launching against the same stock inside a few minutes — the shape MEME made on AMC.</span></div></div>
   </section>
 
   <section class="panel" style="grid-column:1/-1">
@@ -518,6 +537,32 @@
         <td class="addr">${esc(l.via)}</td>
         <td class="num">${lag}</td></tr>`;
     }, 'waiting for the first pool…');
+
+    // ── anchor bursts ───────────────────────────────────────────────────
+    const bl = s.bursts || [];
+    $('n-burst').textContent = bl.length ? `(${bl.length})` : '';
+    $('bursts').innerHTML = !bl.length
+      ? `<div class="empty">watching for a crowd to converge on one anchor…<br><span style="font-size:11px">several different tokens launching against the same stock inside a few minutes — the shape MEME made on AMC.</span></div>`
+      : bl.map((b) => {
+          const picks = (s.burstPicks && s.burstPicks[b.anchor]) || [];
+          return `<div class="burst">
+            <div class="bhead">
+              <span class="tag anchor" title="${esc(b.anchorName)}">${esc(b.anchor)}</span>
+              <span class="cnt">${b.distinctTokens} tokens</span>
+              ${b.virgin ? '<span class="tag virgin" title="this stock has never been launched against before">FIRST EVER</span>' : `<span class="dim">${b.ratio.toFixed(1)}× baseline</span>`}
+              ${b.tightestSpanS !== null ? `<span class="ok">4 in ${Math.round(b.tightestSpanS)}s</span>` : ''}
+              <span class="why">${esc(b.why)}</span>
+            </div>
+            ${picks.length ? picks.map((p, i) => `
+              <div class="pick ${i === 0 && !p.blocked && p.score > 0.28 ? 'lead' : ''} ${p.blocked ? 'blocked' : ''}">
+                <span class="rank">${i + 1}</span>
+                <a class="tok-link nm" href="https://dexscreener.com/robinhood/${encodeURIComponent(p.token)}" target="_blank" rel="noopener noreferrer">${esc(p.symbol)}</a>
+                <span class="sc"><div class="bar"><i class="${p.score > 0.5 ? '' : 'hot'}" style="width:${Math.round(p.score * 100)}%"></i></div></span>
+                <span class="vd">${esc(p.verdict)}</span>
+              </div>`).join('')
+              : '<div class="pick"><span class="vd">no contender has separated yet</span></div>'}
+          </div>`;
+        }).join('');
 
     // ── paper account ───────────────────────────────────────────────────
     const a = s.account;
