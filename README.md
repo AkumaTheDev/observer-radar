@@ -15,8 +15,12 @@ directly. **Your tab is the process.** There is no server, no API key, and nothi
 collected.
 
 - Launch detection is **push, sub-second** — not polling.
-- Both WebSocket providers are subscribed at once and events deduplicated, because provider
-  chain heads drift by up to ~64 blocks (≈4.5s). Whichever delivers first wins.
+- **All four** WebSocket providers are subscribed at once and events deduplicated. This is
+  not only a latency race: measured over 45 seconds, 7,428 distinct PoolManager logs arrived
+  and **no single provider delivered more than half of them** — these public nodes drop logs
+  from a filtered subscription under load, and each one carries a different subset. Watching
+  two of them saw roughly 4,700 of the 7,428. Whichever delivers an event first wins, and the
+  union is the point.
 - Velocity baselines build while the tab is open, so the acceleration panel stays empty for
   the first ~4 minutes. That is deliberate: something newly discovered has no baseline and
   would otherwise read as infinitely fast.
