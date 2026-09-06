@@ -99,6 +99,8 @@
      reads as a path with sizes rather than a row of names. */
   .hopc{display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.15;vertical-align:top}
   .hopc .at{font-style:normal;font-size:10px;color:var(--dim);letter-spacing:.02em}
+  .padtoggle{float:right;font-size:11px;color:var(--dim);display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+  .padtoggle b{color:var(--acc)}
   .load-rest{
     display:inline-block;margin-top:6px;padding:7px 11px;border-radius:4px;cursor:pointer;
     border:1px solid var(--line);background:#111823;color:var(--txt);font:inherit;
@@ -201,7 +203,10 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Paper account <span class="n" id="n-acct"></span>
-      <span class="hint">fire on pending whale swap · 5% off fill · bank 18–32%</span></h2>
+      <span class="hint">fire on pending whale swap · 5% off fill · bank 18–32%</span>
+      <label class="padtoggle" title="Take EVERY launch from one launchpad and exit on the first mark that clears gas, both pool fees and impact. The book prices all three, so the win rate it reports is what the idea is actually worth.">
+        <input type="checkbox" id="pad-pons"> <span>snipe every <b>Pons</b> launch</span>
+      </label></h2>
     <div class="mcap-ctrl" id="mcap-ctrl">
       <div class="span">
         <span class="k">mcap band</span>
@@ -322,6 +327,7 @@
   let onSelect = () => {};
   let setMcapBand = (_lo, _hi) => {};
   let setLiqMin = (_n) => {};
+  let setPadOnly = (_p) => {};
   /**
    * Market cap, short enough to read in a rotation chain: $18k, $340k, $2.1M.
    * Small caps keep a digit of precision because the difference between $18k and $34k is
@@ -423,6 +429,10 @@
     : n >= 1e3 ? (n/1e3).toFixed(0)+'k' : String(Math.round(n||0));
   const usd = (n) => '$' + fmt(n);
   const hhmmss = (t) => new Date(t).toISOString().slice(11,19);
+  {
+    const el = $('pad-pons');
+    if (el) el.addEventListener('change', () => setPadOnly(el.checked ? 'pons' : null));
+  }
   const ago = (ms) => { const s=Math.round(ms/1000); if(s<60) return s+'s';
     const m=Math.round(s/60); if(m<60) return m+'m'; return Math.round(m/60)+'h'; };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -834,6 +844,7 @@
     onSelect = (a) => obs.loadWallet(a);
     setMcapBand = (lo, hi) => obs.setMcapBand(lo, hi);
     setLiqMin = (n) => obs.setLiqMin(n);
+    setPadOnly = (p) => obs.setPadOnly(p);
     obs.start(paint).catch(() => setConn(false, 'upstream unreachable'));
   }).catch(() => setConn(false, 'failed to load pipeline'));
 
