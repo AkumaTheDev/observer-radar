@@ -95,6 +95,10 @@
   .hold{display:inline-block;margin-right:5px;color:var(--dim);font-size:11px}
   .hold b{color:var(--txt);font-weight:600}
   .hold.buy b{color:var(--acc)}
+  /* A rotation hop: ticker on top, the cap it was entered at underneath, so a chain of them
+     reads as a path with sizes rather than a row of names. */
+  .hopc{display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.15;vertical-align:top}
+  .hopc .at{font-style:normal;font-size:10px;color:var(--dim);letter-spacing:.02em}
   .load-rest{
     display:inline-block;margin-top:6px;padding:7px 11px;border-radius:4px;cursor:pointer;
     border:1px solid var(--line);background:#111823;color:var(--txt);font:inherit;
@@ -240,9 +244,9 @@
 
   <section class="panel" style="grid-column:1/-1">
     <h2>Spike whales <span class="n" id="n-whale"></span>
-      <span class="hint">click the wallet for holdings · a name for DexScreener</span></h2>
+      <span class="hint">wallets that buy, then the chart rips. small grey number = the market cap they entered at</span></h2>
     <div class="scroll" style="max-height:280px"><table>
-      <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>in</th><th>rotation</th></tr></thead>
+      <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>holding now</th><th>rotation — and the market cap they bought in at</th></tr></thead>
       <tbody id="t-whale"><tr><td colspan="6" class="empty">resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind</td></tr></tbody>
     </table></div>
   </section>
@@ -318,6 +322,18 @@
   let onSelect = () => {};
   let setMcapBand = (_lo, _hi) => {};
   let setLiqMin = (_n) => {};
+  /**
+   * Market cap, short enough to read in a rotation chain: $18k, $340k, $2.1M.
+   * Small caps keep a digit of precision because the difference between $18k and $34k is
+   * the whole decision; millions do not need it.
+   */
+  const cap = (n) => {
+    if (n === undefined || n === null || !isFinite(n) || n <= 0) return '';
+    if (n >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return '$' + (n/1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M';
+    if (n >= 1e3) return '$' + Math.round(n/1e3) + 'k';
+    return '$' + Math.round(n);
+  };
   const fmtUsd = (n) => n >= 1e6
     ? '$' + (Number.isInteger(n/1e6) ? (n/1e6) : (n/1e6).toFixed(1)) + 'M'
     : '$' + Math.round(n/1e3) + 'k';
@@ -673,13 +689,25 @@
     $('n-whale').textContent = (s.whales && s.whales.length) ? `(${s.whales.length})` : '';
     rows($('t-whale'), s.whales || [], 6, (w) => {
       const wr = Math.round((w.winRate || 0) * 100);
-      const hop = (sym, chart) => chart
-        ? `<a class="hold buy tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="open ${esc(sym)} on DexScreener"><b>${esc(sym)}</b></a>`
-        : `<span class="hold buy"><b>${esc(sym)}</b></span>`;
+      /**
+       * A hop shows the cap they ENTERED at, under the ticker. That is the number being
+       * asked for when someone watches a rotation: not what the token is worth now, but
+       * what size this wallet was willing to buy — the entry that their record is evidence
+       * about. `mcapUsd` is stamped at the trade, so it never drifts with the price.
+       */
+      const hop = (sym, chart, mcap, at, entered) => {
+        const cp = cap(mcap);
+        const when = at ? ago(Date.now() - at) + ' ago' : '';
+        const label = `<b>${esc(sym)}</b>${cp ? `<i class="at">${cp}</i>` : ''}`;
+        const tip = esc(sym) + (cp ? ` — ${entered ? 'entered at' : 'in at'} ${cp}` : '') + (when ? ` · ${when}` : '');
+        return chart
+          ? `<a class="hold buy tok-link hopc" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="${tip}">${label}</a>`
+          : `<span class="hold buy hopc" title="${tip}">${label}</span>`;
+      };
       const rot = (w.rotation || []).map((x) => {
         const sym = typeof x === 'string' ? x : x.symbol;
         const chart = typeof x === 'string' ? '' : (x.chart || (x.token ? `https://dexscreener.com/robinhood/${encodeURIComponent(x.token)}` : ''));
-        return hop(sym, chart);
+        return hop(sym, chart, typeof x === 'string' ? undefined : x.mcapUsd, typeof x === 'string' ? 0 : x.at, true);
       }).join('<span class="dim"> → </span>');
       const realized = w.realizedPct === undefined || w.realizedPct === null
         ? '<span class="dim">—</span>'
@@ -687,7 +715,8 @@
       const innSym = w.inNow || w.lastSymbol;
       const innChart = w.inNowChart || w.lastChart;
       const inn = innSym
-        ? (w.inNow ? hop(innSym, innChart) : `<span class="dim">${hop(innSym, innChart)}</span>`)
+        ? (w.inNow ? hop(innSym, innChart, w.inNowMcapUsd, w.lastBuyAt, false)
+          : `<span class="dim">${hop(innSym, innChart, w.inNowMcapUsd, w.lastBuyAt, false)}</span>`)
         : '<span class="dim">—</span>';
       return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
         <td>${walletLink(w.address, w.ens, w.explorer)}</td>
