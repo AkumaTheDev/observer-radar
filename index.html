@@ -429,9 +429,10 @@
     : n >= 1e3 ? (n/1e3).toFixed(0)+'k' : String(Math.round(n||0));
   const usd = (n) => '$' + fmt(n);
   const hhmmss = (t) => new Date(t).toISOString().slice(11,19);
+  let padArmed = false;
   {
     const el = $('pad-pons');
-    if (el) el.addEventListener('change', () => setPadOnly(el.checked ? 'pons' : null));
+    if (el) el.addEventListener('change', () => { padArmed = true; setPadOnly(el.checked ? 'pons' : null); });
   }
   const ago = (ms) => { const s=Math.round(ms/1000); if(s<60) return s+'s';
     const m=Math.round(s/60); if(m<60) return m+'m'; return Math.round(m/60)+'h'; };
@@ -487,6 +488,12 @@
     if (s.mcapBand) {
       if (!mcapBand.armed) { mcapBand.sync(s.mcapBand.minUsd, s.mcapBand.maxUsd); mcapBand.armed = true; }
       else $('mcap-readout').textContent = fmtUsd(s.mcapBand.minUsd) + ' – ' + fmtUsd(s.mcapBand.maxUsd);
+    }
+    if (s.padOnly !== undefined) {
+      const el = $('pad-pons');
+      // Restored state has to reach the control, or a reloaded page shows the snipe off
+      // while it is running. Only when untouched, so a tick is never fought by a repaint.
+      if (el && !padArmed) { el.checked = s.padOnly === 'pons'; padArmed = true; }
     }
     if (s.liqMinUsd !== undefined) {
       if (!liqArmed) { syncLiqUi(s.liqMinUsd); liqArmed = true; }
@@ -837,7 +844,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js').then(({ Observer }) => {
+  import('./app.js?v=82b5c8ea').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
