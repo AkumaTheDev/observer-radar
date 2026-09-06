@@ -89,6 +89,13 @@
     border:1px solid currentColor;opacity:.9;
   }
   .wbadge.gold{color:var(--gold)} .wbadge.cool{color:var(--cool)}
+  /* A wallet that has just arrived on the board. Static, not animated: the table repaints
+     twice a second and an animation would restart on every frame. */
+  tr.wal.fresh > td:first-child{box-shadow:inset 2px 0 0 var(--acc)}
+  .wnew{
+    display:inline-block;margin-right:3px;padding:1px 4px;border-radius:3px;
+    font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--bg);background:var(--acc);
+  }
   a.tag{text-decoration:none}
   a.tag:hover{filter:brightness(1.35)}
   .addr{color:var(--faint);font-size:11px}
@@ -563,6 +570,28 @@
 
   function paint(s) {
     lastSnap = s;
+    /**
+     * Hold every scroll position across the repaint.
+     *
+     * The board rebuilds each table's innerHTML about twice a second, and replacing the
+     * rows inside a scrolling box sends it straight back to the top. On a phone that made
+     * every list on the page unreadable: scroll down, and half a second later you are at
+     * row one again. The positions are read before the rebuild and put back after it, so
+     * a list stays where it was put.
+     *
+     * Restoring only when it actually moved matters — assigning scrollTop unconditionally
+     * cancels the momentum of a flick that is still in progress.
+     */
+    const held = [];
+    for (const box of document.querySelectorAll('.scroll')) {
+      if (box.scrollTop > 0) held.push([box, box.scrollTop]);
+    }
+    try { paintBody(s); } finally {
+      for (const [box, top] of held) if (box.scrollTop !== top) box.scrollTop = top;
+    }
+  }
+
+  function paintBody(s) {
     if (s.mcapBand) {
       if (!mcapBand.armed) { mcapBand.sync(s.mcapBand.minUsd, s.mcapBand.maxUsd); mcapBand.armed = true; }
       else $('mcap-readout').textContent = fmtUsd(s.mcapBand.minUsd) + ' – ' + fmtUsd(s.mcapBand.maxUsd);
@@ -857,16 +886,17 @@
       const bought = w.boughtUsd
         ? `<span title="biggest single buy ${usd(w.topBuyUsd || 0)}">${usd(w.boughtUsd)}</span>`
         : '<span class="dim">—</span>';
-      return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
+      const fresh = w.since !== undefined && Date.now() - w.since < 60_000;
+      return `<tr class="wal${fresh ? ' fresh' : ''}" data-w="${esc(w.address)}" tabindex="0">
         <td>${walletLink(w.address, w.ens, w.explorer)}</td>
-        <td>${badges || '<span class="dim">—</span>'}</td>
+        <td>${fresh ? '<span class="wnew">NEW</span>' : ''}${badges || '<span class="dim">—</span>'}</td>
         <td class="num">${bought}</td>
         <td class="num ${w.wins>=2?'ok':''}">${w.wins}<span class="dim">/${w.scored||0}</span>
           <span class="dim" style="font-size:10px"> ${wr}%</span></td>
         <td class="num">${realized}</td>
         <td>${inn}</td>
         <td>${rot || '<span class="dim">—</span>'}</td></tr>`;
-    }, 'resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind');
+    }, 'resolving EOAs behind routers — a wallet earns its badge on the tape, not on a follower count');
 
     $('n-lp').textContent = (s.lpHeat && s.lpHeat.length) ? `(${s.lpHeat.length})` : '';
     rows($('t-lp'), s.lpHeat || [], 6, (r) => {
@@ -968,7 +998,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=0e4fb3fa').then(({ Observer }) => {
+  import('./app.js?v=99e43d31').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
