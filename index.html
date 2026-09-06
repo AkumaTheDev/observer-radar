@@ -325,9 +325,25 @@
   let selected = null;
   let lastSnap = null;
   let onSelect = () => {};
-  let setMcapBand = (_lo, _hi) => {};
-  let setLiqMin = (_n) => {};
-  let setPadOnly = (_p) => {};
+  /**
+   * Controls the user can touch before the pipeline exists.
+   *
+   * These start as stubs and are replaced when app.js finishes loading, which on a phone is
+   * seconds after the sliders are on screen and draggable. A stub that just dropped the
+   * change made the UI LIE: the thumb sat where it was dragged, the engine kept the value
+   * it booted with, and the decision log then refused a coin for being under a floor the
+   * board was no longer showing. Whatever is set in that gap is remembered here and applied
+   * the moment the real control arrives.
+   */
+  const pendingControls = {};
+  let setMcapBand = (lo, hi) => { pendingControls.mcap = [lo, hi]; };
+  let setLiqMin = (n) => { pendingControls.liq = n; };
+  let setPadOnly = (p) => { pendingControls.pad = p; };
+  const flushControls = () => {
+    if (pendingControls.mcap) setMcapBand(pendingControls.mcap[0], pendingControls.mcap[1]);
+    if (pendingControls.liq !== undefined) setLiqMin(pendingControls.liq);
+    if (pendingControls.pad !== undefined) setPadOnly(pendingControls.pad);
+  };
   /**
    * Market cap, short enough to read in a rotation chain: $18k, $340k, $2.1M.
    * Small caps keep a digit of precision because the difference between $18k and $34k is
@@ -617,6 +633,18 @@
           <div class="acell"><div class="k">Costs paid</div><div class="v mid">$${costs.toFixed(2)}</div>
             <div class="s">gas $${a.gasPaidUsd.toFixed(2)} · fee $${a.feesPaidUsd.toFixed(2)} · impact $${a.impactPaidUsd.toFixed(2)}</div></div>
         </div>
+        <div class="sechead">In the window — what the snipe is watching, live</div>
+        <div class="scroll" style="max-height:132px">${
+          (s.armed && s.armed.length)
+            ? `<table><thead><tr><th>token</th><th>pad</th><th class="num">age</th><th class="num">traded</th><th class="num">pace</th><th>state</th></tr></thead><tbody>${
+                s.armed.map(r => `<tr><td><a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(r.token)}" target="_blank" rel="noopener noreferrer">${esc(r.symbol)}</a></td>
+                  <td class="dim">${esc(r.pad || '—')}</td>
+                  <td class="num">${r.ageS}s</td>
+                  <td class="num">${r.volUsd > 0 ? usd(r.volUsd) : '<span class="dim">—</span>'}</td>
+                  <td class="num">${r.paceUsdPerMin > 0 ? usd(r.paceUsdPerMin) + '/min' : '<span class="dim">—</span>'}</td>
+                  <td class="${r.qualified ? 'ok' : 'dim'}" style="font-size:11px">${r.qualified ? 'ARMED' : `${r.swaps} swap${r.swaps === 1 ? '' : 's'}`}</td></tr>`).join('')
+              }</tbody></table>`
+            : '<div class="empty">no launch inside the window right now — every mint lands here first</div>'}</div>
         <div class="split">
           <div>
             <div class="sechead">Positions</div>
@@ -857,7 +885,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=7a5a0a44').then(({ Observer }) => {
+  import('./app.js?v=04c712d9').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
@@ -865,6 +893,8 @@
     setMcapBand = (lo, hi) => obs.setMcapBand(lo, hi);
     setLiqMin = (n) => obs.setLiqMin(n);
     setPadOnly = (p) => obs.setPadOnly(p);
+    // Anything dragged or ticked while this module was still downloading.
+    flushControls();
     obs.start(paint).catch(() => setConn(false, 'upstream unreachable'));
   }).catch(() => setConn(false, 'failed to load pipeline'));
 
