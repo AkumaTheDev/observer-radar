@@ -205,7 +205,7 @@
     <h2>Paper account <span class="n" id="n-acct"></span>
       <span class="hint">fire on pending whale swap · 5% off fill · bank 18–32%</span>
       <label class="padtoggle" title="Take EVERY launch from one launchpad and exit on the first mark that clears gas, both pool fees and impact. The book prices all three, so the win rate it reports is what the idea is actually worth.">
-        <input type="checkbox" id="pad-pons"> <span>snipe every <b>Pons</b> launch</span>
+        <input type="checkbox" id="pad-pons"> <span>snipe <b>Pons</b> launches with $10k+ traded</span>
       </label></h2>
     <div class="mcap-ctrl" id="mcap-ctrl">
       <div class="span">
@@ -857,7 +857,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=19d2dcb1').then(({ Observer }) => {
+  import('./app.js?v=7a5a0a44').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
