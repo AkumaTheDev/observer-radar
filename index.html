@@ -621,20 +621,33 @@
           <div>
             <div class="sechead">Positions</div>
             <div class="scroll" style="max-height:210px">${
-              a.open.length || a.closed.length ? `<table><thead><tr><th>token</th><th class="num">size</th><th class="num">entry</th><th class="num">mark</th><th class="num">P&amp;L</th><th>state</th></tr></thead><tbody>${
+              a.open.length || a.closed.length ? `<table><thead><tr><th>token</th><th class="num">size</th><th class="num">entry mcap</th><th class="num">exit / now</th><th class="num">P&amp;L</th><th>state</th></tr></thead><tbody>${
                 [...a.open.map(p=>({p,live:true})), ...a.closed.slice(0,12).map(p=>({p,live:false}))].map(({p,live}) => {
                   const deployed = p.notional + (p.fills[0] ? p.fills[0].gasUsd : 0);
                   const money = live ? p.qty*p.markPrice - deployed : p.realizedUsd;
                   const ret = deployed ? money/deployed : 0;
                   const fmtPx = (x) => !x ? '—' : x >= 100 ? x.toFixed(2) : x >= 1 ? x.toFixed(4) : x >= 0.01 ? x.toFixed(6) : x.toPrecision(4);
+                  /**
+                   * The position in the only unit the trade was ever about: what cap we
+                   * bought into, and what cap we are at — or sold at. A price of 0.0000031
+                   * says nothing about whether that was early; $46k says it in one glance.
+                   * Supply is implied once and held, so this tracks the live mark instead
+                   * of DexScreener's poll. The exact price stays on hover.
+                   */
+                  const supply = p.supply || 0;
+                  const entryCap = p.entryMcapUsd || (supply && p.fills[0] ? p.fills[0].quoted * supply : 0);
+                  const outCap = live ? (supply ? p.markPrice * supply : 0) : (p.exitMcapUsd || 0);
+                  const capCell = (v, px) => v > 0
+                    ? `<span title="$${fmtPx(px)} a token">${cap(v)}</span>`
+                    : `<span class="dim" title="$${fmtPx(px)} a token — no cap reported yet">—</span>`;
                   const chart = p.token ? `https://dexscreener.com/robinhood/${encodeURIComponent(p.token)}` : '';
                   const name = chart
                     ? `<a class="tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="open ${esc(p.symbol)} on DexScreener">${esc(p.symbol)}</a>`
                     : `<span class="sym">${esc(p.symbol)}</span>`;
                   return `<tr><td>${name}</td>
                     <td class="num">$${p.notional.toFixed(0)}</td>
-                    <td class="num">${fmtPx(p.entryEffective)}</td>
-                    <td class="num">${fmtPx(p.markPrice)}</td>
+                    <td class="num">${capCell(entryCap, p.fills[0] ? p.fills[0].quoted : p.entryEffective)}</td>
+                    <td class="num">${capCell(outCap, p.markPrice)}</td>
                     <td class="num ${money>=0?'ok':'bad'}">${money>=0?'+':''}$${Math.abs(money).toFixed(2)}${ret!==null?` <span class="dim">${(ret*100).toFixed(1)}%</span>`:''}</td>
                     <td class="${live?'ok':'dim'}" style="white-space:normal;font-size:11px">${live?'open':esc(p.reason)}</td></tr>`;
                 }).join('')}</tbody></table>`
@@ -844,7 +857,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=82b5c8ea').then(({ Observer }) => {
+  import('./app.js?v=19d2dcb1').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
