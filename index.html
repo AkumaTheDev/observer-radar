@@ -705,7 +705,7 @@
                   <td class="dim">${esc(r.pad || '—')}</td>
                   <td class="num">${r.ageS}s</td>
                   <td class="num">${r.volUsd > 0 ? usd(r.volUsd) : '<span class="dim">—</span>'}</td>
-                  <td class="num">${r.paceUsdPerMin > 0 ? usd(r.paceUsdPerMin) + '/min' : '<span class="dim">—</span>'}</td>
+                  <td class="num">${r.paceUsdPerMin > 0 ? usd(r.paceUsdPerMin) + '/min' : '<span class="dim">—</span>'}${r.inFlight ? `<div class="dim" style="font-size:10px">${r.inFlight} in flight</div>` : ''}</td>
                   <td class="${r.state === 'ARMED' || r.state === 'IN' ? 'ok' : r.qualified ? 'mid' : 'dim'}" style="font-size:11px">${esc(r.state)}</td></tr>`).join('')
               }</tbody></table>`
             : '<div class="empty">no launch inside the window right now — every mint lands here first</div>'}</div>
@@ -968,7 +968,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=1c2858a7').then(({ Observer }) => {
+  import('./app.js?v=0e4fb3fa').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
