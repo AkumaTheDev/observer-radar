@@ -64,6 +64,24 @@
   a.tok-link:hover{color:var(--acc);border-bottom-color:var(--acc)}
   a.tok-link::after{content:"↗";font-size:9px;color:var(--faint);margin-left:3px;vertical-align:super}
   a.tok-link:hover::after{color:var(--acc)}
+  /**
+   * Copy-a-contract, for the launches that are too new to exist anywhere else.
+   *
+   * A token seconds old has no DexScreener page, no chart and no search result — the link
+   * opens nothing. The address IS the only handle on it, so in the window board the symbol
+   * copies rather than navigates, and the address sits under it in full-tap size.
+   */
+  .tok-copy{
+    color:#fff;font-weight:600;cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.28);
+    -webkit-user-select:none;user-select:none;
+  }
+  .tok-copy:active{color:var(--acc);border-bottom-color:var(--acc)}
+  .tok-copy.done{color:var(--acc);border-bottom-color:var(--acc)}
+  .addr{
+    display:block;margin-top:2px;font-family:var(--mono);font-size:10px;color:var(--dim);
+    cursor:pointer;-webkit-user-select:none;user-select:none;
+  }
+  .addr:active{color:var(--acc)}
   a.tag{text-decoration:none}
   a.tag:hover{filter:brightness(1.35)}
   .addr{color:var(--faint);font-size:11px}
@@ -335,6 +353,42 @@
    * board was no longer showing. Whatever is set in that gap is remembered here and applied
    * the moment the real control arrives.
    */
+  /**
+   * Last address copied, so the "copied" tick survives a repaint.
+   *
+   * The board rebuilds its HTML every 400ms; state kept on the element itself would be gone
+   * before it could be read. Kept here and rendered from, instead.
+   */
+  let copied = { addr: null, at: 0 };
+  const copyAddr = (text) => {
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      try { document.execCommand('copy'); } catch (e) { /* nothing else to try */ }
+      ta.remove();
+    };
+    // The async API needs a secure context; the page is https, but a webview may still
+    // refuse, and a refusal must not lose the address.
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { navigator.clipboard.writeText(text).catch(fallback); } catch (e) { fallback(); }
+    } else fallback();
+    copied = { addr: text, at: Date.now() };
+  };
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest && e.target.closest('[data-copy]');
+    if (!el) return;
+    e.preventDefault();
+    const text = el.getAttribute('data-copy');
+    if (!text) return;
+    copyAddr(text);
+    el.classList.add('done');
+    if (lastSnap) paint(lastSnap);
+  });
   const pendingControls = {};
   let setMcapBand = (lo, hi) => { pendingControls.mcap = [lo, hi]; };
   let setLiqMin = (n) => { pendingControls.liq = n; };
@@ -637,7 +691,9 @@
         <div class="scroll" style="max-height:132px">${
           (s.armed && s.armed.length)
             ? `<table><thead><tr><th>token</th><th>pad</th><th class="num">age</th><th class="num">traded</th><th class="num">pace</th><th>state</th></tr></thead><tbody>${
-                s.armed.map(r => `<tr><td><a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(r.token)}" target="_blank" rel="noopener noreferrer">${esc(r.symbol)}</a></td>
+                s.armed.map(r => `<tr><td><span class="tok-copy${copied.addr === r.token && Date.now() - copied.at < 2000 ? ' done' : ''}" data-copy="${esc(r.token)}" title="tap to copy ${esc(r.token)}">${copied.addr === r.token && Date.now() - copied.at < 2000 ? 'copied ✓' : esc(r.symbol)}</span>
+                  <a class="tok-link" href="https://dexscreener.com/robinhood/${encodeURIComponent(r.token)}" target="_blank" rel="noopener noreferrer" title="chart, once it exists"></a>
+                  <span class="addr" data-copy="${esc(r.token)}">${esc(r.token.slice(0, 6))}…${esc(r.token.slice(-4))}</span></td>
                   <td class="dim">${esc(r.pad || '—')}</td>
                   <td class="num">${r.ageS}s</td>
                   <td class="num">${r.volUsd > 0 ? usd(r.volUsd) : '<span class="dim">—</span>'}</td>
@@ -669,9 +725,13 @@
                     ? `<span title="$${fmtPx(px)} a token">${cap(v)}</span>`
                     : `<span class="dim" title="$${fmtPx(px)} a token — no cap reported yet">—</span>`;
                   const chart = p.token ? `https://dexscreener.com/robinhood/${encodeURIComponent(p.token)}` : '';
-                  const name = chart
-                    ? `<a class="tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="open ${esc(p.symbol)} on DexScreener">${esc(p.symbol)}</a>`
-                    : `<span class="sym">${esc(p.symbol)}</span>`;
+                  // Same problem as the window board: a position opened forty seconds after
+                  // the mint is in a token no chart carries yet, and the address is the only
+                  // way to look at it anywhere else. Tap the symbol to copy it.
+                  const justCopied = copied.addr === p.token && Date.now() - copied.at < 2000;
+                  const name = `<span class="tok-copy${justCopied ? ' done' : ''}" data-copy="${esc(p.token)}" title="tap to copy ${esc(p.token)}">${justCopied ? 'copied ✓' : esc(p.symbol)}</span>`
+                    + (chart ? `<a class="tok-link" href="${esc(chart)}" target="_blank" rel="noopener noreferrer" title="chart, once it exists"></a>` : '')
+                    + (p.token ? `<span class="addr" data-copy="${esc(p.token)}">${esc(String(p.token).slice(0, 6))}…${esc(String(p.token).slice(-4))}</span>` : '');
                   return `<tr><td>${name}</td>
                     <td class="num">$${p.notional.toFixed(0)}</td>
                     <td class="num">${capCell(entryCap, p.fills[0] ? p.fills[0].quoted : p.entryEffective)}</td>
