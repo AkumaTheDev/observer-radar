@@ -82,6 +82,13 @@
     cursor:pointer;-webkit-user-select:none;user-select:none;
   }
   .addr:active{color:var(--acc)}
+  /* Why a wallet is on the board, at a glance. */
+  .wbadge{
+    display:inline-block;margin-right:3px;padding:1px 4px;border-radius:3px;
+    font-size:9px;font-weight:700;letter-spacing:.06em;
+    border:1px solid currentColor;opacity:.9;
+  }
+  .wbadge.gold{color:var(--gold)} .wbadge.cool{color:var(--cool)}
   a.tag{text-decoration:none}
   a.tag:hover{filter:brightness(1.35)}
   .addr{color:var(--faint);font-size:11px}
@@ -266,11 +273,11 @@
   </section>
 
   <section class="panel" style="grid-column:1/-1">
-    <h2>Spike whales <span class="n" id="n-whale"></span>
-      <span class="hint">wallets that buy, then the chart rips. small grey number = the market cap they entered at</span></h2>
+    <h2>Whales &amp; leading traders <span class="n" id="n-whale"></span>
+      <span class="hint">SPIKE = their buys rip the chart · SIZE = most money through the tape · WIN = their buys are up. small grey number = the market cap they entered at</span></h2>
     <div class="scroll" style="max-height:280px"><table>
-      <thead><tr><th>wallet</th><th class="num">spikes</th><th class="num">rate</th><th class="num">realized</th><th>holding now</th><th>rotation — and the market cap they bought in at</th></tr></thead>
-      <tbody id="t-whale"><tr><td colspan="6" class="empty">resolving EOAs behind routers — a spike is a buy that rips the chart, not a slow grind</td></tr></tbody>
+      <thead><tr><th>wallet</th><th>why</th><th class="num">bought</th><th class="num">spikes</th><th class="num">realized</th><th>holding now</th><th>rotation — and the market cap they bought in at</th></tr></thead>
+      <tbody id="t-whale"><tr><td colspan="7" class="empty">resolving EOAs behind routers — a wallet earns its badge on the tape, not on a follower count</td></tr></tbody>
     </table></div>
   </section>
 
@@ -806,7 +813,7 @@
     paintBuyersDrawer();
 
     $('n-whale').textContent = (s.whales && s.whales.length) ? `(${s.whales.length})` : '';
-    rows($('t-whale'), s.whales || [], 6, (w) => {
+    rows($('t-whale'), s.whales || [], 7, (w) => {
       const wr = Math.round((w.winRate || 0) * 100);
       /**
        * A hop shows the cap they ENTERED at, under the ticker. That is the number being
@@ -837,10 +844,25 @@
         ? (w.inNow ? hop(innSym, innChart, w.inNowMcapUsd, w.lastBuyAt, false)
           : `<span class="dim">${hop(innSym, innChart, w.inNowMcapUsd, w.lastBuyAt, false)}</span>`)
         : '<span class="dim">—</span>';
+      /**
+       * The badges, in the order they were earned. Three different reasons to watch a
+       * wallet, and a wallet that earns more than one is the interesting case — big money
+       * that is also usually right is not the same animal as either on its own.
+       */
+      const badge = { spike: ['SPIKE', 'ok'], size: ['SIZE', 'gold'], winner: ['WIN', 'cool'] };
+      const badges = (w.kinds || []).map((k) => {
+        const b = badge[k];
+        return b ? `<span class="wbadge ${b[1]}" title="${esc(w.why || '')}">${b[0]}</span>` : '';
+      }).join('');
+      const bought = w.boughtUsd
+        ? `<span title="biggest single buy ${usd(w.topBuyUsd || 0)}">${usd(w.boughtUsd)}</span>`
+        : '<span class="dim">—</span>';
       return `<tr class="wal" data-w="${esc(w.address)}" tabindex="0">
         <td>${walletLink(w.address, w.ens, w.explorer)}</td>
-        <td class="num ${w.wins>=2?'ok':''}">${w.wins}<span class="dim">/${w.scored||0}</span></td>
-        <td class="num ${wr>=50?'ok':wr>=30?'mid':'dim'}">${wr}%</td>
+        <td>${badges || '<span class="dim">—</span>'}</td>
+        <td class="num">${bought}</td>
+        <td class="num ${w.wins>=2?'ok':''}">${w.wins}<span class="dim">/${w.scored||0}</span>
+          <span class="dim" style="font-size:10px"> ${wr}%</span></td>
         <td class="num">${realized}</td>
         <td>${inn}</td>
         <td>${rot || '<span class="dim">—</span>'}</td></tr>`;
@@ -946,7 +968,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=947a52c6').then(({ Observer }) => {
+  import('./app.js?v=1c2858a7').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
