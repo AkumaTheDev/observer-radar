@@ -89,6 +89,13 @@
     border:1px solid currentColor;opacity:.9;
   }
   .wbadge.gold{color:var(--gold)} .wbadge.cool{color:var(--cool)}
+  /* Copying an address, kept off the tap target that opens the explorer. */
+  .copychip{
+    display:inline-block;margin-left:5px;padding:1px 4px;border-radius:3px;cursor:pointer;
+    font-size:9px;letter-spacing:.06em;color:var(--dim);border:1px solid var(--line);
+    -webkit-user-select:none;user-select:none;
+  }
+  .copychip:active{color:var(--acc);border-color:var(--acc)}
   /* A wallet that has just arrived on the board. Static, not animated: the table repaints
      twice a second and an animation would restart on every frame. */
   tr.wal.fresh > td:first-child{box-shadow:inset 2px 0 0 var(--acc)}
@@ -862,9 +869,18 @@
       const held = (f.holding || []).length
         ? f.holding.map((h) => `<span class="hold buy">${esc(h.symbol)} <i class="at">$${Math.round(h.sizeUsd)}</i></span>`).join(' ')
         : '<span class="dim">—</span>';
+      /**
+       * The name and the address both open the wallet on the chain's explorer, because
+       * "who is this" is the first question a followed wallet raises and the answer is a
+       * page, not a clipboard. Copying stays available on its own control rather than
+       * taking the tap — the address was a copy target and nothing else, so clicking the
+       * one thing on the row that looks like a person did nothing at all.
+       */
+      const url = explorerUrl(f.address, f.explorer);
       return `<tr>
-        <td><b>${esc(f.label)}</b></td>
-        <td><span class="tok-copy" data-copy="${esc(f.address)}" title="tap to copy ${esc(f.address)}">${esc(f.address.slice(0, 6))}…${esc(f.address.slice(-4))}</span></td>
+        <td><a class="tok-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="${esc(f.address)} — open on the explorer"><b>${esc(f.label)}</b></a></td>
+        <td><a class="wa tok-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="${esc(f.address)} — open on the explorer">${esc(f.address.slice(0, 6))}…${esc(f.address.slice(-4))}</a>
+          <span class="copychip" data-copy="${esc(f.address)}" title="copy ${esc(f.address)}">${copied.addr === f.address && Date.now() - copied.at < 2000 ? 'copied ✓' : 'copy'}</span></td>
         <td class="num ${f.nonce === null ? 'dim' : ''}">${f.nonce === null ? '—' : f.nonce}</td>
         <td>${act}</td>
         <td>${held}</td></tr>`;
