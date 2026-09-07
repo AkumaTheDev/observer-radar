@@ -280,6 +280,15 @@
   </section>
 
   <section class="panel" style="grid-column:1/-1">
+    <h2>Following <span class="n" id="n-follow"></span>
+      <span class="hint">their trades are mirrored on the paper book — in on their buy, out on their sell. <b>same block</b> = caught on the sequencer feed, not the mined log</span></h2>
+    <div class="scroll" style="max-height:150px"><table>
+      <thead><tr><th>who</th><th>wallet</th><th class="num">nonce</th><th>last trade</th><th>we hold</th></tr></thead>
+      <tbody id="t-follow"><tr><td colspan="5" class="empty">nobody followed</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel" style="grid-column:1/-1">
     <h2>Whales &amp; leading traders <span class="n" id="n-whale"></span>
       <span class="hint">SPIKE = their buys rip the chart · SIZE = most money through the tape · WIN = their buys are up. small grey number = the market cap they entered at</span></h2>
     <div class="scroll" style="max-height:280px"><table>
@@ -841,6 +850,26 @@
 
     paintBuyersDrawer();
 
+    $('n-follow').textContent = (s.following && s.following.length) ? `(${s.following.length})` : '';
+    rows($('t-follow'), s.following || [], 5, (f) => {
+      const last = f.last;
+      const when = last ? ago(Date.now() - last.at) + ' ago' : '';
+      const act = last
+        ? `<a class="tok-link" href="${esc(last.chart)}" target="_blank" rel="noopener noreferrer">${
+            last.isBuy ? '<span class="ok">BOUGHT</span>' : '<span class="bad">SOLD</span>'} ${esc(last.symbol)}</a>`
+          + `<span class="dim" style="font-size:10px"> ${esc(when)}${last.sameBlock ? ' · same block' : ''}</span>`
+        : '<span class="dim">nothing seen yet</span>';
+      const held = (f.holding || []).length
+        ? f.holding.map((h) => `<span class="hold buy">${esc(h.symbol)} <i class="at">$${Math.round(h.sizeUsd)}</i></span>`).join(' ')
+        : '<span class="dim">—</span>';
+      return `<tr>
+        <td><b>${esc(f.label)}</b></td>
+        <td><span class="tok-copy" data-copy="${esc(f.address)}" title="tap to copy ${esc(f.address)}">${esc(f.address.slice(0, 6))}…${esc(f.address.slice(-4))}</span></td>
+        <td class="num ${f.nonce === null ? 'dim' : ''}">${f.nonce === null ? '—' : f.nonce}</td>
+        <td>${act}</td>
+        <td>${held}</td></tr>`;
+    }, 'nobody followed');
+
     $('n-whale').textContent = (s.whales && s.whales.length) ? `(${s.whales.length})` : '';
     rows($('t-whale'), s.whales || [], 7, (w) => {
       const wr = Math.round((w.winRate || 0) * 100);
@@ -998,7 +1027,7 @@
   // Access-Control-Allow-Origin: *, so the page holds its own subscriptions and gets the
   // same sub-second push and the same multi-provider race as the container build. State is
   // per-tab and resets on reload; that is the whole cost.
-  import('./app.js?v=99e43d31').then(({ Observer }) => {
+  import('./app.js?v=cc0a0844').then(({ Observer }) => {
     const obs = new Observer();
     setConn(true, 'live · direct');
     // Extra wallet details (nonce / ETH / balanceOf) load only from the drawer button.
